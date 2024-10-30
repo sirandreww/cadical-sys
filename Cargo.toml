@@ -4,6 +4,7 @@ description = "Unsafe system-level automatically generated bindings to the CaDiC
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
+links = "cadical"
 
 [build-dependencies]
 bindgen = "0.70.1"
