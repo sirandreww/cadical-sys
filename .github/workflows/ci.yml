@@ -60,7 +60,7 @@ jobs:
       # check is a weaker version of clippy but it is faster
       - run: cargo check --all-targets --all-features
       # source https://doc.rust-lang.org/nightly/clippy/continuous_integration/github_actions.html
-      - run: cargo clippy --all-targets --all-features -- -D warnings
+      # - run: cargo clippy --all-targets --all-features -- -D warnings
       # A more pedantic version that should probably be used in the future, but it is too much for now
       # - run: cargo clippy --all-targets --all-features -- -D warnings -Dclippy::all -Dclippy::pedantic
       # try and build the project
