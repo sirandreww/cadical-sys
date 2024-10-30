@@ -237,13 +237,25 @@ fn compile_using_configuration_script() -> Result<PathBuf, String> {
     assert!(dst.success(), "Failed to execute cadical `make`.");
 
     // move everything to the output directory
+    let dst = Command::new("rm")
+        .arg("-rf")
+        .arg(&out_dir)
+        .status()
+        .expect("Failed to execute `rm -rf` while compiling cadical.");
+    assert!(
+        dst.success(),
+        "Failed to execute `mv` while compiling cadical."
+    );
     let dst = Command::new("mv")
         .arg("-f")
         .arg(cadical_dir.join("build"))
         .arg(&out_dir)
         .status()
-        .expect("Failed to execute `mv`.");
-    assert!(dst.success(), "Failed to execute `mv`.");
+        .expect("Failed to execute `mv` while compiling cadical.");
+    assert!(
+        dst.success(),
+        "Failed to execute `mv` while compiling cadical."
+    );
 
     println!(
         "cargo:rustc-link-lib={}",
@@ -261,7 +273,7 @@ fn compile_using_configuration_script() -> Result<PathBuf, String> {
 }
 
 fn create_bindings() -> Result<(), String> {
-    let bindings = bindgen::Builder::default()
+    let bindings = autocxx_bindgen::Builder::default()
         .header("wrapper.hpp")
         .enable_cxx_namespaces()
         .allowlist_type("CaDiCaL.*")
@@ -274,7 +286,7 @@ fn create_bindings() -> Result<(), String> {
         // .opaque_type("std::string.*")
         // .opaque_type("std::optional.*")
         .clang_arg("-fparse-all-comments")
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+        .parse_callbacks(Box::new(autocxx_bindgen::CargoCallbacks::new()))
         .generate()
         .expect("Unable to generate bindings for cadical.");
 
