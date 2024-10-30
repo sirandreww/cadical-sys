@@ -24,7 +24,7 @@ use std::{
 // ************************************************************************************************
 
 fn init_submodules() {
-    if std::path::Path::new("cadical").exists() {
+    if std::path::Path::new("cadical/src").exists() {
         return;
     }
     let _ = Command::new("git")
