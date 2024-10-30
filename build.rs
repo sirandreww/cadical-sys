@@ -273,7 +273,7 @@ fn compile_using_configuration_script() -> Result<PathBuf, String> {
 }
 
 fn create_bindings() -> Result<(), String> {
-    let bindings = autocxx_bindgen::Builder::default()
+    let bindings = bindgen::Builder::default()
         .header("wrapper.hpp")
         .enable_cxx_namespaces()
         .allowlist_type("CaDiCaL.*")
@@ -286,7 +286,7 @@ fn create_bindings() -> Result<(), String> {
         // .opaque_type("std::string.*")
         // .opaque_type("std::optional.*")
         .clang_arg("-fparse-all-comments")
-        .parse_callbacks(Box::new(autocxx_bindgen::CargoCallbacks::new()))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .generate()
         .expect("Unable to generate bindings for cadical.");
 
