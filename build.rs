@@ -23,6 +23,15 @@ use std::{
 // Compile using cc crate
 // ************************************************************************************************
 
+fn init_submodules() {
+    let _ = Command::new("git")
+        .arg("submodule")
+        .arg("update")
+        .arg("--init")
+        .output()
+        .expect("Failed to execute git submodule update --init.");
+}
+
 fn _compile_using_cc() -> Result<(), String> {
     let mut build = cc::Build::new();
 
@@ -314,6 +323,7 @@ fn create_bindings() -> Result<(), String> {
 
 fn main() -> Result<(), String> {
     // print_configurations_for_rust_compiler();
+    init_submodules();
     _compile_using_cc()?;
     // _compile_using_cc();
     create_bindings()?;
