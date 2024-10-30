@@ -7,7 +7,7 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 #[test]
 fn simple_test() {
     unsafe {
-        let mut solver = CaDiCaL::Solver::new();
+        let mut solver = crate::root::CaDiCaL::Solver::new();
 
         // 3 = 1 && 2
         solver.add(1);
@@ -23,6 +23,9 @@ fn simple_test() {
         solver.add(-2);
         solver.add(0);
 
-        assert_eq!(solver.solve(), true);
+        assert_eq!(
+            solver.solve(),
+            crate::root::CaDiCaL::Status_SATISFIABLE as i32
+        );
     }
 }
