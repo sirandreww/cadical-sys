@@ -327,7 +327,7 @@ fn create_bindings() -> Result<(), String> {
 fn main() -> Result<(), String> {
     // print_configurations_for_rust_compiler();
     init_submodules();
-    _compile_using_cc()?;
+    _compile_using_configuration_script()?;
     // _compile_using_cc();
     create_bindings()?;
     Ok(())
