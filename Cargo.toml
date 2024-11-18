@@ -6,6 +6,10 @@ edition = "2021"
 license = "MIT"
 links = "cadical"
 
+[dependencies]
+cxx = "1.0"
+
 [build-dependencies]
-bindgen = "0.70.1"
-cc = { version = "1.1.31", features = ["parallel"] }
+# bindgen = "0.70.1"
+# cc = { version = "1.1.31", features = ["parallel"] }
+cxx-build = "1.0"
