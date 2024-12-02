@@ -1,4 +1,4 @@
-use cadical_sys::{CaDiCal, ClauseIterator, Status};
+use cadical_sys::{CaDiCal, ClauseIterator, Learner, Status, Terminator};
 use rand::Rng;
 
 fn get_random_cnf<R: Rng>(rng: &mut R) -> Vec<Vec<i32>> {
@@ -170,4 +170,65 @@ fn solver_management() {
     // Get solver statistics
     solver.statistics();
     solver.resources();
+}
+
+// cargo valgrind test --package cadical-sys --test random_tests -- terminator_memory_test --exact --nocapture
+#[test]
+fn terminator_memory_test() {
+    const ITERATIONS: usize = 100;
+    struct Term {
+        v: Vec<i32>,
+    }
+
+    impl Terminator for Term {
+        fn terminated(&mut self) -> bool {
+            self.v.push(self.v.last().unwrap() + 1);
+            false
+        }
+    }
+
+    struct L {
+        v: Vec<i32>,
+    }
+
+    impl Learner for L {
+        fn learn(&mut self, lit: i32) {
+            self.v.push(lit);
+        }
+
+        fn learning(&mut self, size: i32) -> bool {
+            self.v.push(size);
+            false
+        }
+    }
+
+    let mut rng = rand::thread_rng();
+
+    for i in 0..ITERATIONS {
+        let seed: u64 = rng.gen();
+        println!("i = {i}\tseed = {seed}");
+
+        let cnf = get_random_cnf(&mut rng);
+
+        // make solver
+        let mut solver = CaDiCal::new();
+
+        for clause in &cnf {
+            solver.clause6(clause);
+        }
+
+        let mut t = Term { v: vec![7; 1000] };
+        let t_ref = &mut t;
+        solver.connect_terminator(t_ref);
+
+        let mut l = L { v: Vec::new() };
+        let l_ref = &mut l;
+        solver.connect_learner(l_ref);
+
+        solver.simplify(3);
+
+        if i % 2 == 0 {
+            solver.disconnect_terminator();
+        }
+    }
 }

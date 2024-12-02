@@ -780,20 +780,58 @@ pub mod ffi {
         ///
         pub fn build(file: String, prefix: String);
 
+        // ****************************************************************************************
+        // API for connected objects
+        // ****************************************************************************************
+
         /// Connected terminators are checked for termination regularly.  If the
         /// 'terminate' function of the terminator returns true the solver is
         /// terminated synchronously as soon it calls this function.
-        pub fn new_terminator(terminate: fn() -> bool) -> UniquePtr<Terminator>;
+        ///
+        /// # Safety
+        ///
+        /// The pointers in this function and in the function passed to it are
+        /// there to allow the state changes. Where the pointer points to a
+        /// generic state that the user of this function wants. This pointer must
+        /// remain valid throughout the run.
+        #[allow(clippy::missing_safety_doc)]
+        pub unsafe fn new_terminator(
+            s: *mut u8,
+            terminate: unsafe fn(*mut u8) -> bool,
+        ) -> UniquePtr<Terminator>;
 
         /// Connected learners which can be used to export learned clauses.
         /// The 'learning' can check the size of the learn clause and only if it
         /// returns true then the individual literals of the learned clause are given
         /// to the learn through 'learn' one by one terminated by a zero literal.
-        pub fn new_learner(learning: fn(i32) -> bool, learn: fn(i32)) -> UniquePtr<Learner>;
+        ///
+        /// # Safety
+        ///
+        /// The pointers in this function and in the function passed to it are
+        /// there to allow the state changes. Where the pointer points to a
+        /// generic state that the user of this function wants. This pointer must
+        /// remain valid throughout the run.
+        #[allow(clippy::missing_safety_doc)]
+        pub unsafe fn new_learner(
+            s: *mut u8,
+            learning: unsafe fn(*mut u8, i32) -> bool,
+            learn: unsafe fn(*mut u8, i32),
+        ) -> UniquePtr<Learner>;
 
-        // Connected listener gets notified whenever the truth value of a variable is
-        // fixed (for example during inprocessing or due to some derived unit clauses).
-        pub fn new_fixed_assignment_listener(fixed: fn(i32)) -> UniquePtr<FixedAssignmentListener>;
+        /// Connected listener gets notified whenever the truth value of a variable is
+        /// fixed (for example during inprocessing or due to some derived unit clauses).
+        ///
+        /// # Safety
+        ///
+        /// The pointers in this function and in the function passed to it are
+        /// there to allow the state changes. Where the pointer points to a
+        /// generic state that the user of this function wants. This pointer must
+        /// remain valid throughout the run.
+        #[allow(clippy::missing_safety_doc)]
+        pub unsafe fn new_fixed_assignment_listener(
+            s: *mut u8,
+            fixed: unsafe fn(*mut u8, i32),
+        ) -> UniquePtr<FixedAssignmentListener>;
 
         /// Allows to traverse all remaining irredundant clauses.  Satisfied and
         /// eliminated clauses are not included, nor any derived units unless such

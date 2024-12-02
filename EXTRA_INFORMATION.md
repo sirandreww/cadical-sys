@@ -34,5 +34,6 @@ cargo fmt --all --check &&
 cargo clippy --all-targets --all-features -- -D warnings &&
 cargo clippy --all-targets --all-features -- -D warnings -Dclippy::all -Dclippy::pedantic &&
 cargo test --all-features --doc &&
-cargo test --verbose
+cargo test --verbose &&
+cargo publish --dry-run --allow-dirty
 ```

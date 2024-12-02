@@ -619,97 +619,120 @@ void build(rust::String file, rust::String prefix)
 }
 
 // ************************************************************************************************
+// Objects that pass a state around
+// ************************************************************************************************
+
+struct CustomTerminator : public Terminator
+{
+    uint8_t *s;
+    rust::Fn<bool(uint8_t *)> f;
+
+    CustomTerminator(uint8_t *s, rust::Fn<bool(uint8_t *)> f) : s(s), f(f) {}
+
+    bool terminate() override
+    {
+        return f(s);
+    }
+};
+
+struct CustomLearner : public Learner
+{
+    uint8_t *s;
+    rust::Fn<bool(uint8_t *, int)> f;
+    rust::Fn<void(uint8_t *, int)> h;
+
+    CustomLearner(uint8_t *s, rust::Fn<bool(uint8_t *, int)> f, rust::Fn<void(uint8_t *, int)> h) : s(s), f(f), h(h) {}
+
+    bool learning(int size) override
+    {
+        return f(s, size);
+    }
+
+    void learn(int lit) override
+    {
+        h(s, lit);
+    }
+};
+
+struct CustomFixedAssignmentListener : public FixedAssignmentListener
+{
+    uint8_t *s;
+    rust::Fn<void(uint8_t *, int)> f;
+
+    CustomFixedAssignmentListener(uint8_t *s, rust::Fn<void(uint8_t *, int)> f) : s(s), f(f) {}
+
+    void notify_fixed_assignment(int lit) override
+    {
+        f(s, lit);
+    }
+};
+
+struct CustomClauseIterator : public ClauseIterator
+{
+    rust::Fn<bool(uint8_t *, const rust::Slice<const int>)> f;
+    uint8_t *s;
+
+    CustomClauseIterator(uint8_t *s, rust::Fn<bool(uint8_t *, const rust::Slice<const int>)> f) : f(f), s(s) {}
+
+    bool clause(const std::vector<int> &clause) override
+    {
+        rust::Slice<const int> slice{clause.data(), clause.size()};
+        return f(s, slice);
+    }
+};
+
+struct CustomWitnessIterator : public WitnessIterator
+{
+    rust::Fn<bool(uint8_t *, const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> f;
+    uint8_t *s;
+
+    CustomWitnessIterator(uint8_t *s, rust::Fn<bool(uint8_t *, const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> f) : f(f), s(s) {}
+
+    bool witness(const std::vector<int> &clause, const std::vector<int> &witness, uint64_t id) override
+    {
+
+        rust::Slice<const int> rust_clause{clause.data(), clause.size()};
+        rust::Slice<const int> rust_witness{witness.data(), witness.size()};
+        return f(s, rust_clause, rust_witness, id);
+    }
+};
+
+// ************************************************************************************************
 // These functions make the objects that can be attached to the solver
 // ************************************************************************************************
 
-std::unique_ptr<Terminator> new_terminator(rust::Fn<bool()> terminate)
+std::unique_ptr<Terminator> new_terminator(
+    uint8_t *initial_state,
+    rust::Fn<bool(uint8_t *)> terminate)
 {
-    struct CustomTerminator : public Terminator
-    {
-        rust::Fn<bool()> f;
-
-        CustomTerminator(rust::Fn<bool()> f) : f(f) {}
-
-        bool terminate() override
-        {
-            return f();
-        }
-    };
-    return std::unique_ptr<Terminator>(new CustomTerminator(terminate));
+    return std::unique_ptr<Terminator>(new CustomTerminator(initial_state, terminate));
 }
 
-std::unique_ptr<Learner> new_learner(rust::Fn<bool(int)> learning, rust::Fn<void(int)> learn)
+std::unique_ptr<Learner> new_learner(
+    uint8_t *initial_state,
+    rust::Fn<bool(uint8_t *, int)> learning,
+    rust::Fn<void(uint8_t *, int)> learn)
 {
-    struct CustomLearner : public Learner
-    {
-        rust::Fn<bool(int)> f;
-        rust::Fn<void(int)> h;
-
-        CustomLearner(rust::Fn<bool(int)> f, rust::Fn<void(int)> h) : f(f), h(h) {}
-
-        bool learning(int size) override
-        {
-            return f(size);
-        }
-
-        void learn(int lit) override
-        {
-            h(lit);
-        }
-    };
-    return std::unique_ptr<Learner>(new CustomLearner(learning, learn));
+    return std::unique_ptr<Learner>(new CustomLearner(initial_state, learning, learn));
 }
 
-std::unique_ptr<FixedAssignmentListener> new_fixed_assignment_listener(rust::Fn<void(int)> notify_fixed_assignment)
+std::unique_ptr<FixedAssignmentListener> new_fixed_assignment_listener(
+    uint8_t *initial_state,
+    rust::Fn<void(uint8_t *, int)> notify_fixed_assignment)
 {
-    struct CustomFixedAssignmentListener : public FixedAssignmentListener
-    {
-        rust::Fn<void(int)> f;
-
-        CustomFixedAssignmentListener(rust::Fn<void(int)> f) : f(f) {}
-
-        void notify_fixed_assignment(int lit) override
-        {
-            f(lit);
-        }
-    };
-    return std::unique_ptr<FixedAssignmentListener>(new CustomFixedAssignmentListener(notify_fixed_assignment));
+    return std::unique_ptr<FixedAssignmentListener>(new CustomFixedAssignmentListener(initial_state, notify_fixed_assignment));
 }
 
-std::unique_ptr<ClauseIterator> new_clause_iterator(uint8_t *initial_state, rust::Fn<bool(uint8_t *, const rust::Slice<const int>)> clause)
+std::unique_ptr<ClauseIterator> new_clause_iterator(
+    uint8_t *initial_state,
+    rust::Fn<bool(uint8_t *, const rust::Slice<const int>)> clause)
 {
-    struct CustomClauseIterator : public ClauseIterator
-    {
-        rust::Fn<bool(uint8_t *, const rust::Slice<const int>)> f;
-        uint8_t *s;
-
-        CustomClauseIterator(uint8_t *s, rust::Fn<bool(uint8_t *, const rust::Slice<const int>)> f) : f(f), s(s) {}
-
-        bool clause(const std::vector<int> &clause) override
-        {
-            rust::Slice<const int> slice{clause.data(), clause.size()};
-            return f(s, slice);
-        }
-    };
     return std::unique_ptr<ClauseIterator>(new CustomClauseIterator(initial_state, clause));
 }
 
-std::unique_ptr<WitnessIterator> new_witness_iterator(uint8_t * initial_state, rust::Fn<bool(uint8_t *, const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> witness)
+std::unique_ptr<WitnessIterator> new_witness_iterator(
+    uint8_t *initial_state,
+    rust::Fn<bool(uint8_t *, const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> witness)
 {
-    struct CustomWitnessIterator : public WitnessIterator
-    {
-        rust::Fn<bool(uint8_t *, const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> f;
-        uint8_t *s;
-
-        CustomWitnessIterator(uint8_t *s, rust::Fn<bool(uint8_t *, const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> f) : f(f), s(s) {}
-
-        bool witness(const std::vector<int> &clause, const std::vector<int> &witness, uint64_t id) override
-        {
-
-            rust::Slice<const int> rust_clause{clause.data(), clause.size()};
-            rust::Slice<const int> rust_witness{witness.data(), witness.size()};
-            return f(s, rust_clause, rust_witness, id);
-        }
-    };
     return std::unique_ptr<WitnessIterator>(new CustomWitnessIterator(initial_state, witness));
 }

@@ -258,6 +258,8 @@ impl From<i32> for State {
 
 pub struct CaDiCal {
     solver: UniquePtr<ffi::Solver>,
+    last_terminator: Option<UniquePtr<ffi::Terminator>>,
+    last_learner: Option<UniquePtr<ffi::Learner>>,
 }
 
 impl Clone for CaDiCal {
@@ -280,6 +282,8 @@ impl CaDiCal {
     pub fn new() -> Self {
         Self {
             solver: ffi::constructor(),
+            last_terminator: None,
+            last_learner: None,
         }
     }
 
@@ -442,33 +446,68 @@ impl CaDiCal {
         ffi::failed(&mut self.solver, lit)
     }
 
-    // /// Add call-back which is checked regularly for termination.  There can
-    // /// only be one terminator connected.  If a second (non-zero) one is added
-    // /// the first one is implicitly disconnected.
-    // ///
-    // ///   require (VALID)
-    // ///   ensure (VALID)
-    // ///
-    // pub fn connect_terminator<T: Terminator>(&mut self, _terminator: T) {
-    //     todo!()
-    // }
+    /// Add call-back which is checked regularly for termination.  There can
+    /// only be one terminator connected.  If a second (non-zero) one is added
+    /// the first one is implicitly disconnected.
+    ///
+    ///   require (VALID)
+    ///   ensure (VALID)
+    ///
+    #[inline]
+    #[allow(clippy::missing_panics_doc)]
+    pub fn connect_terminator<'a, 'b: 'a, T: Terminator>(&'a mut self, terminator: &'b mut T) {
+        fn f<T: Terminator>(state: *mut u8) -> bool {
+            let ptr: *mut T = state.cast::<T>();
+            let i = unsafe { &mut *ptr };
+            i.terminated()
+        }
+        let terminator =
+            unsafe { ffi::new_terminator(std::ptr::from_mut(terminator).cast::<u8>(), f::<T>) };
+        self.last_terminator = Some(terminator);
+        ffi::connect_terminator(&mut self.solver, self.last_terminator.as_mut().unwrap());
+    }
 
     #[inline]
     pub fn disconnect_terminator(&mut self) {
         ffi::disconnect_terminator(&mut self.solver);
+        self.last_terminator = None;
     }
 
-    // /// Add call-back which allows to export learned clauses.
-    // ///
-    // ///   require (VALID)
-    // ///   ensure (VALID)
-    // ///
-    // pub fn connect_learner<L: Learner>(&mut self, _learner: L) {
-    //     todo!()
-    // }
+    /// Add call-back which allows to export learned clauses.
+    ///
+    ///   require (VALID)
+    ///   ensure (VALID)
+    ///
+    #[inline]
+    #[allow(clippy::missing_panics_doc)]
+    pub fn connect_learner<'a, 'b: 'a, T: Learner>(&'a mut self, learner: &'b mut T) {
+        fn learning<T: Learner>(state: *mut u8, size: i32) -> bool {
+            let ptr: *mut T = state.cast::<T>();
+            let i = unsafe { &mut *ptr };
+            i.learning(size)
+        }
+
+        fn learn<T: Learner>(state: *mut u8, lit: i32) {
+            let ptr: *mut T = state.cast::<T>();
+            let i = unsafe { &mut *ptr };
+            i.learn(lit);
+        }
+
+        let learner = unsafe {
+            ffi::new_learner(
+                std::ptr::from_mut(learner).cast::<u8>(),
+                learning::<T>,
+                learn::<T>,
+            )
+        };
+        self.last_learner = Some(learner);
+        ffi::connect_learner(&mut self.solver, self.last_learner.as_mut().unwrap());
+    }
+
     #[inline]
     pub fn disconnect_learner(&mut self) {
         ffi::disconnect_learner(&mut self.solver);
+        self.last_learner = None;
     }
 
     // /// Add call-back which allows to observe when a variable is fixed.
@@ -1276,7 +1315,7 @@ impl CaDiCal {
 /// 'terminate' function of the terminator returns true the solver is
 /// terminated synchronously as soon it calls this function.
 pub trait Terminator {
-    fn terminated(&self) -> bool;
+    fn terminated(&mut self) -> bool;
 }
 
 /// Connected learners which can be used to export learned clauses.
