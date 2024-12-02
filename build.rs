@@ -13,7 +13,7 @@ fn init_submodules() {
 }
 
 fn compile_cadical() -> Result<(), String> {
-    let mut build = cxx_build::bridge("src/ffi.rs");
+    let mut build = cxx_build::bridge("src/bridge.rs");
 
     build.cpp(true).flag_if_supported("-std=c++11");
 
@@ -67,7 +67,7 @@ fn compile_cadical() -> Result<(), String> {
     }
     println!("cargo:rerun-if-changed=src/cadical_bridge.hpp");
     println!("cargo:rerun-if-changed=src/lib.rs");
-    println!("cargo:rerun-if-changed=src/ffi.rs");
+    println!("cargo:rerun-if-changed=src/bridge.rs");
     println!("cargo:rerun-if-changed=build.rs");
 
     // Standard build environment vars

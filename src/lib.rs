@@ -1,164 +1,125 @@
-pub mod ffi;
+//! # cadical-sys
+//!
+//! Rust bindings for the CaDiCaL SAT Solver, providing low-level access to one of the most efficient Boolean Satisfiability (SAT) solving libraries.
+//!
+//! ## Overview
+//!
+//! `cadical-sys` offers complete Rust bindings to the CaDiCaL SAT solver using the `cxx` crate, enabling seamless interoperability between Rust and C++ SAT solving capabilities.
+//!
+//! ### What is a SAT Solver?
+//!
+//! A SAT (Boolean Satisfiability) solver is a computational tool that determines whether there exists an assignment of boolean variables that makes a given boolean formula true. SAT solvers are crucial in:
+//! - Formal verification
+//! - Hardware design
+//! - AI planning
+//! - Cryptanalysis
+//! - Constraint solving
+//!
+//! ### About CaDiCaL
+//!
+//! [CaDiCaL](https://github.com/arminbiere/cadical) is a state-of-the-art, modern SAT solver developed by Armin Biere. Known for its:
+//! - High performance
+//! - Extensive features
+//! - Compact implementation
+//! - Advanced conflict-driven clause learning (CDCL) techniques
+//!
+//! ## Features
+//!
+//! - Complete binding of CaDiCaL C++ API
+//! - Safe Rust wrappers using `cxx`
+//! - Support for:
+//!   - Adding clauses
+//!   - Solving boolean satisfiability problems
+//!   - Assumption handling
+//!   - Advanced solver configuration
+//!   - Proof tracing
+//!   - Incremental solving
+//!
+//! ## Installation
+//!
+//! Add to your `Cargo.toml`:
+//!
+//! ```toml
+//! [dependencies]
+//! cadical-sys = "0.1.0"  # Replace with most recent version
+//! ```
+//!
+//! ## Basic Usage Example
+//!
+//! ```rust
+//! use cadical_sys::ffi;
+//!
+//!     //! Create a new solver instance
+//!     let mut solver = ffi::constructor();
+//!
+//!     //! Add clauses (represent boolean constraints)
+//!     ffi::clause2(&mut solver, 1, -2);   //! (x1 OR NOT x2)
+//!     ffi::clause2(&mut solver, -1, 2);   //! (NOT x1 OR x2)
+//!
+//!     //! Solve the SAT problem
+//!     let result = ffi::solve(&mut solver);
+//!
+//!     match result {
+//!         10 => println!("Satisfiable!"),
+//!         20 => println!("Unsatisfiable!"),
+//!         _ => println!("Unknown result"),
+//!     }
+//! ```
+//!
+//! ## Advanced Features
+//!
+//! ### Solver Configuration
+//!
+//! ```rust
+//! //! Set solver-specific options
+//! solver.set("verbose".to_string(), 1);
+//! solver.configure("plain".to_string());
+//! ```
+//!
+//! ### Incremental Solving
+//!
+//! ```rust
+//! //! Add assumptions for solving
+//! ffi::assume(&mut solver, 1);   //! Assume x1 is true
+//! let result = ffi::solve(&mut solver);
+//! ```
+//!
+//! ### Proof Tracing
+//!
+//! ```rust
+//! //! Trace proof to a file
+//! ffi::trace_proof1(&mut solver, "proof.out".to_string(), "myproof".to_string());
+//! ```
+//!
+//! ## Performance Considerations
+//!
+//! - CaDiCaL is highly optimized for complex boolean satisfiability problems
+//! - Recommended for problems with thousands to millions of variables
+//! - Lower overhead compared to many other SAT solvers
+//!
+//! ## Limitations
+//!
+//! - Requires understanding of boolean logic and SAT solving
+//! - Performance depends on problem complexity
+//! - Advanced features require deep knowledge of SAT solving techniques
+//!
+//! ## Contributing
+//!
+//! Contributions are welcome! Please file issues or submit pull requests on the GitHub repository.
+//!
+//! ## License
+//!
+//! CaDiCaL is distributed under the MIT License. Check the original repository for detailed licensing information.
+//!
+//! ## References
+//!
+//! - [CaDiCaL GitHub Repository](https://!github.com/arminbiere/cadical)
+//! - [cxx Rust Bindings](https://!cxx.rs/)
+//! - [SAT Solver Overview](https://!en.wikipedia.org/wiki/Boolean_satisfiability_problem)
+//!
+//! ## Acknowledgments
+//!
+//! Special thanks to Armin Biere for developing and maintaining CaDiCaL.
 
-use std::os::raw::c_char;
-#[allow(non_camel_case_types)]
-use std::vec::Vec;
-
-#[derive(Debug, PartialEq)]
-pub enum Status {
-    SATISFIABLE = ffi::SATISFIABLE as isize,
-    UNSATISFIABLE = 20,
-    UNKNOWN = 0,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum State {
-    INITIALIZING = 1,
-    CONFIGURING = 2,
-    STEADY = 4,
-    ADDING = 8,
-    SOLVING = 16,
-    SATISFIED = 32,
-    UNSATISFIED = 64,
-    DELETING = 128,
-}
-
-impl State {
-    pub const READY: State =
-        State::CONFIGURING | State::STEADY | State::SATISFIED | State::UNSATISFIED;
-    pub const VALID: State = State::READY | State::ADDING;
-    pub const INVALID: State = State::INITIALIZING | State::DELETING;
-}
-
-pub struct Solver {
-    internal: ffi::UniquePtr<ffi::Solver>,
-}
-
-impl Solver {
-    pub fn new() -> Self {
-        Solver {
-            internal: ffi::constructor(),
-        }
-    }
-
-    pub fn add(&mut self, lit: i32) {
-        // Implementation here
-    }
-
-    pub fn clause(&mut self, _args: &[i32]) {
-        // Implementation here
-    }
-
-    pub fn inconsistent(&self) -> bool {
-        // Implementation here
-        false
-    }
-
-    pub fn assume(&mut self, lit: i32) {
-        // Implementation here
-    }
-
-    pub fn solve(&mut self) -> i32 {
-        // Implementation here
-        0
-    }
-
-    pub fn val(&self, lit: i32) -> i32 {
-        // Implementation here
-        0
-    }
-
-    pub fn flip(&mut self, lit: i32) -> bool {
-        // Implementation here
-        false
-    }
-
-    pub fn flippable(&self, lit: i32) -> bool {
-        // Implementation here
-        false
-    }
-
-    pub fn failed(&self, lit: i32) -> bool {
-        // Implementation here
-        false
-    }
-
-    pub fn reset_assumptions(&mut self) {
-        // Implementation here
-    }
-
-    pub fn reset_constraint(&mut self) {
-        // Implementation here
-    }
-
-    pub fn state(&self) -> &State {
-        &self.state
-    }
-
-    pub fn status(&self) -> i32 {
-        match self.state {
-            State::SATISFIED => 10,
-            State::UNSATISFIED => 20,
-            _ => 0,
-        }
-    }
-
-    pub fn vars(&self) -> i32 {
-        // Implementation here
-        0
-    }
-
-    pub fn reserve(&mut self, _min_max_var: i32) {
-        // Implementation here
-    }
-
-    // Additional methods would be implemented here...
-}
-
-pub struct CubesWithStatus {
-    pub status: i32,
-    pub cubes: Vec<Vec<i32>>,
-}
-
-impl Solver {
-    pub fn generate_cubes(&self, _arg1: i32, _min_depth: i32) -> CubesWithStatus {
-        // Implementation here
-        CubesWithStatus {
-            status: 0,
-            cubes: Vec::new(),
-        }
-    }
-}
-
-pub trait Terminator {
-    fn terminate(&self) -> bool;
-}
-
-pub trait Learner {
-    fn learning(&self, size: i32) -> bool;
-    fn learn(&self, lit: i32);
-}
-
-pub trait FixedAssignmentListener {
-    fn notify_fixed_assignment(&self, _lit: i32);
-}
-
-pub trait ExternalPropagator {
-    fn notify_assignment(&self, _lits: &Vec<i32>);
-    fn notify_new_decision_level(&self);
-    fn notify_backtrack(&self, _new_level: usize);
-    fn cb_check_found_model(&self, _model: &Vec<i32>) -> bool;
-    fn cb_decide(&self) -> i32;
-    fn cb_propagate(&self) -> i32;
-    fn cb_add_reason_clause_lit(&self, _propagated_lit: i32) -> i32;
-    fn cb_has_external_clause(&self, _is_forgettable: &mut bool) -> bool;
-    fn cb_add_external_clause_lit(&self) -> i32;
-}
-
-pub trait ClauseIterator {
-    fn clause(&self, _clause: &Vec<i32>) -> bool;
-}
-
-pub trait WitnessIterator {
-    fn witness(&self, _clause: &Vec<i32>, _witness: &Vec<i32>, _id: u64) -> bool;
-}
+pub mod bridge;
+pub use bridge::ffi::*;

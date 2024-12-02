@@ -286,7 +286,7 @@ void reset_constraint(std::unique_ptr<Solver> &solver)
 // status
 // ************************************************************************************************
 
-const State &state(const std::unique_ptr<Solver> &solver)
+int state(const std::unique_ptr<Solver> &solver)
 {
     return solver->state();
 }
@@ -335,6 +335,11 @@ void reserve(std::unique_ptr<Solver> &solver, int min_max_var)
 //     solver->trace_api_calls(fptr);
 //     fclose(fptr);
 // }
+
+bool is_valid_option(rust::String name)
+{
+    return Solver::is_valid_option(name.c_str());
+}
 
 bool is_preprocessing_option(rust::String name)
 {
@@ -599,4 +604,93 @@ void build(rust::String file, rust::String prefix)
     FILE *fptr = _read_file(file, "w+");
     Solver::build(fptr, prefix.c_str());
     fclose(fptr);
+}
+
+
+// ************************************************************************************************
+// These functions make the objects that can be attached to the solver
+// ************************************************************************************************
+
+std::unique_ptr<Terminator> new_terminator(rust::Fn<bool()> terminate)
+{
+    struct CustomTerminator: public Terminator {
+        rust::Fn<bool()> f;
+
+        CustomTerminator(rust::Fn<bool()> f): f(f) {}
+
+        bool terminate() override {
+            return f();
+        }
+    };
+    return std::unique_ptr<Terminator>(new CustomTerminator(terminate));
+}
+
+std::unique_ptr<Learner> new_learner(rust::Fn<bool(int)> learning, rust::Fn<void(int)> learn)
+{
+    struct CustomLearner: public Learner {
+        rust::Fn<bool(int)> f;
+        rust::Fn<void(int)> h;
+
+        CustomLearner(rust::Fn<bool(int)> f, rust::Fn<void(int)> h): f(f), h(h) {}
+
+        bool learning(int size) override {
+            return f(size);
+        }
+
+        void learn(int lit) override {
+            h(lit);
+        }
+    };
+    return std::unique_ptr<Learner>(new CustomLearner(learning, learn));
+}
+
+
+std::unique_ptr<FixedAssignmentListener> new_fixed_assignment_listener(rust::Fn<void(int)> notify_fixed_assignment)
+{
+    struct CustomFixedAssignmentListener: public FixedAssignmentListener {
+        rust::Fn<void(int)> f;
+
+        CustomFixedAssignmentListener(rust::Fn<void(int)> f): f(f) {}
+
+        void notify_fixed_assignment(int lit) override {
+            f(lit);
+        }
+    };
+    return std::unique_ptr<FixedAssignmentListener>(new CustomFixedAssignmentListener(notify_fixed_assignment));
+}
+
+
+
+std::unique_ptr<ClauseIterator> new_clause_iterator(rust::Fn<bool(const rust::Vec<int> &)> clause )
+{
+    struct CustomClauseIterator: public ClauseIterator {
+        rust::Fn<bool(const rust::Vec<int> &)> f;
+
+        CustomClauseIterator(rust::Fn<bool(const rust::Vec<int> &)> f): f(f) {}
+
+        bool clause(const std::vector<int> &clause) override {
+            rust::Vec<int> rust_clause;
+            _copy_vec_from_cxx_to_rust(clause, rust_clause);
+            return f(rust_clause);
+        }
+    };
+    return std::unique_ptr<ClauseIterator>(new CustomClauseIterator(clause));
+}
+
+std::unique_ptr<WitnessIterator> new_witness_iterator(rust::Fn<bool(const rust::Vec<int> &, const rust::Vec<int> &, uint64_t)> witness )
+{
+    struct CustomWitnessIterator: public WitnessIterator {
+        rust::Fn<bool(const rust::Vec<int> &, const rust::Vec<int> &, uint64_t)> f;
+
+        CustomWitnessIterator(rust::Fn<bool(const rust::Vec<int> &, const rust::Vec<int> &, uint64_t)> f): f(f) {}
+
+        bool witness(const std::vector<int> &clause, const std::vector<int> &witness, uint64_t id) override {
+            rust::Vec<int> rust_clause;
+            rust::Vec<int> rust_witness;
+            _copy_vec_from_cxx_to_rust(clause, rust_clause);
+            _copy_vec_from_cxx_to_rust(witness, rust_witness);
+            return f(rust_clause, rust_witness, id);
+        }
+    };
+    return std::unique_ptr<WitnessIterator>(new CustomWitnessIterator(witness));
 }
