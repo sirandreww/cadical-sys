@@ -24,8 +24,10 @@ pub mod ffi {
         type FileTracer;
 
         /// Constructor and basic operations
+        #[must_use]
         pub fn constructor() -> UniquePtr<Solver>;
 
+        #[must_use]
         pub fn signature() -> String;
 
         /// Core functionality as in the IPASIR incremental SAT solver interface.
@@ -52,11 +54,12 @@ pub mod ffi {
         pub fn clause3(solver: &mut UniquePtr<Solver>, l1: i32, l2: i32, l3: i32);
         pub fn clause4(solver: &mut UniquePtr<Solver>, l1: i32, l2: i32, l3: i32, l4: i32);
         pub fn clause5(solver: &mut UniquePtr<Solver>, l1: i32, l2: i32, l3: i32, l4: i32, l5: i32);
-        pub fn clause6(solver: &mut UniquePtr<Solver>, v: &Vec<i32>);
+        pub fn clause6(solver: &mut UniquePtr<Solver>, v: &[i32]);
 
-        /// # Safety
+        /// Function that makes clause from any slice of integers.
         ///
-        /// This function is unsafe because it dereferences a raw pointer.
+        /// # Safety
+        /// This function must be called with a valid pointer to a slice of integers.
         pub unsafe fn clause7(solver: &mut UniquePtr<Solver>, ptr: *const i32, n: usize);
 
         /// This function can be used to check if the formula is already
@@ -292,14 +295,17 @@ pub mod ffi {
 
         /// Return the current state of the solver as defined above.
         ///
+        #[must_use]
         pub fn state(solver: &UniquePtr<Solver>) -> i32;
 
         /// Similar to 'state ()' but using the staddard competition exit codes of
         /// '10' for 'SATISFIABLE', '20' for 'UNSATISFIABLE' and '0' otherwise.
         ///
+        #[must_use]
         pub fn status(solver: &UniquePtr<Solver>) -> i32;
 
         /// return version string
+        #[must_use]
         pub fn version() -> String;
 
         /*----------------------------------------------------------------------*/
@@ -345,15 +351,18 @@ pub mod ffi {
         /// Option handling.
         /// Determine whether 'name' is a valid option name.
         ///
+        #[must_use]
         pub fn is_valid_option(name: String) -> bool;
 
         /// Determine whether 'name' enables a specific preprocessing technique.
         ///
+        #[must_use]
         pub fn is_preprocessing_option(name: String) -> bool;
 
         /// Determine whether 'arg' is a valid long option of the form '--<name>',
         /// '--<name>=<val>' or '--no-<name>' similar to 'set_long_option' below.
         /// Legal values are 'true', 'false', or '[-]<mantissa>[e<exponent>]'.
+        #[must_use]
         pub fn is_valid_long_option(arg: String) -> bool;
 
         /// Get the current value of the option 'name'.  If 'name' is invalid then
@@ -394,6 +403,7 @@ pub mod ffi {
 
         /// Determine whether 'name' is a valid configuration.
         ///
+        #[must_use]
         pub fn is_valid_configuration(name: String) -> bool;
 
         /// Overwrite (some) options with the forced values of the configuration.
@@ -443,12 +453,15 @@ pub mod ffi {
         ///   ensure (VALID)
         ///
         /// Number of active variables.
+        #[must_use]
         pub fn active(solver: &UniquePtr<Solver>) -> i32;
 
         /// Number of active redundant clauses.
+        #[must_use]
         pub fn redundant(solver: &UniquePtr<Solver>) -> i64;
 
         /// Number of active irredundant clauses.
+        #[must_use]
         pub fn irredundant(solver: &UniquePtr<Solver>) -> i64;
 
         //------------------------------------------------------------------------
@@ -504,6 +517,7 @@ pub mod ffi {
         ///   require (VALID)
         ///   ensure (VALID)
         ///
+        #[must_use]
         pub fn frozen(solver: &UniquePtr<Solver>, lit: i32) -> bool;
         pub fn freeze(solver: &mut UniquePtr<Solver>, lit: i32);
         pub fn melt(solver: &mut UniquePtr<Solver>, lit: i32);
@@ -516,6 +530,7 @@ pub mod ffi {
         ///   require (VALID)
         ///   ensure (VALID)
         ///
+        #[must_use]
         pub fn fixed(solver: &UniquePtr<Solver>, lit: i32) -> i32;
 
         //------------------------------------------------------------------------
@@ -784,9 +799,16 @@ pub mod ffi {
         /// is inconsistent only the empty clause is traversed.
         ///
         /// If 'clause' returns false traversal aborts early.
+        ///
+        /// # Safety\n
+        ///
+        /// The pointers in this function and in the function passed to it are
+        /// there to allow the state changes. Where the pointer points to a
+        /// generic state that the user of this function wants. This pointer must
+        /// remain valid throughout propagation.
         pub unsafe fn new_clause_iterator(
             s: *mut u8,
-            clause: unsafe fn(*mut u8, &Vec<i32>) -> bool,
+            clause: unsafe fn(*mut u8, &[i32]) -> bool,
         ) -> UniquePtr<ClauseIterator>;
 
         /// Allows to traverse all clauses on the extension stack together with their
@@ -804,7 +826,7 @@ pub mod ffi {
         ///
         /// If 'witness' returns false traversal aborts early.
         pub fn new_witness_iterator(
-            witness: fn(&Vec<i32>, &Vec<i32>, u64) -> bool,
+            witness: fn(&[i32], &[i32], u64) -> bool,
         ) -> UniquePtr<WitnessIterator>;
     }
 }

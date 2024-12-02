@@ -1,6 +1,6 @@
 [package]
 name = "cadical-sys"
-description = "Unsafe system-level automatically generated bindings to the CaDiCaL SAT solver using bindgen."
+description = "Complete and Safe bindings for the CaDiCal SAT solver, made using the cxx crate."
 version = "0.2.0"
 edition = "2021"
 license = "MIT"
@@ -15,8 +15,6 @@ readme = "README.md"
 cxx = "1.0"
 
 [build-dependencies]
-# bindgen = "0.70.1"
-# cc = { version = "1.1.31", features = ["parallel"] }
 cxx-build = "1.0"
 
 [dev-dependencies]

@@ -23,23 +23,22 @@ fn get_random_cnf<R: Rng>(rng: &mut R) -> Vec<Vec<i32>> {
 // valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --log-file=valgrind-out.txt cargo test --package cadical-sys --test random_tests -- random_test --exact --nocapture
 #[test]
 fn random_test() {
-    let mut rng = rand::thread_rng();
+    const ITERATIONS: usize = 10000;
     struct CI {
         v: Vec<Vec<i32>>,
     }
 
     impl ClauseIterator for CI {
-        fn clause(&mut self, clause: &Vec<i32>) -> bool {
-            self.v.push(clause.clone());
+        fn clause(&mut self, clause: &[i32]) -> bool {
+            self.v.push(clause.to_vec());
             true
         }
     }
-
-    const ITERATIONS: usize = 10000;
+    let mut rng = rand::thread_rng();
 
     for i in 0..ITERATIONS {
         let seed: u64 = rng.gen();
-        println!("i = {}\tseed = {}", i, seed);
+        println!("i = {i}\tseed = {seed}");
 
         let cnf = get_random_cnf(&mut rng);
 
@@ -143,7 +142,7 @@ fn dimacs_solving() {
         0,
     );
 
-    println!("Read DIMACS result: {:?}", result);
+    println!("Read DIMACS result: {result:?}");
 
     // Solve the problem from the file
     let status = solver.solve();

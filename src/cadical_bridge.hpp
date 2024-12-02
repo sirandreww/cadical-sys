@@ -61,7 +61,9 @@ rust::String _convert_char_to_rust_string(const char *str)
     if (str == NULL)
     {
         return rust::String("Null");
-    } else {
+    }
+    else
+    {
         return rust::String(str);
     }
 }
@@ -110,7 +112,7 @@ void clause5(std::unique_ptr<Solver> &solver, int l1, int l2, int l3, int l4, in
     return solver->clause(l1, l2, l3, l4, l5);
 }
 
-void clause6(std::unique_ptr<Solver> &solver, const rust::Vec<int> &v)
+void clause6(std::unique_ptr<Solver> &solver, const rust::Slice<const int> v)
 {
     return solver->clause(v.data(), v.size());
 }
@@ -674,39 +676,37 @@ std::unique_ptr<FixedAssignmentListener> new_fixed_assignment_listener(rust::Fn<
     return std::unique_ptr<FixedAssignmentListener>(new CustomFixedAssignmentListener(notify_fixed_assignment));
 }
 
-std::unique_ptr<ClauseIterator> new_clause_iterator(uint8_t* initial_state, rust::Fn<bool(uint8_t*, const rust::Vec<int> &)> clause)
+std::unique_ptr<ClauseIterator> new_clause_iterator(uint8_t *initial_state, rust::Fn<bool(uint8_t *, const rust::Slice<const int>)> clause)
 {
     struct CustomClauseIterator : public ClauseIterator
     {
-        rust::Fn<bool(uint8_t*, const rust::Vec<int> &)> f;
-        uint8_t* s;
+        rust::Fn<bool(uint8_t *, const rust::Slice<const int>)> f;
+        uint8_t *s;
 
-        CustomClauseIterator(uint8_t* s,rust::Fn<bool(uint8_t*, const rust::Vec<int> &)> f) : f(f), s(s) {}
+        CustomClauseIterator(uint8_t *s, rust::Fn<bool(uint8_t *, const rust::Slice<const int>)> f) : f(f), s(s) {}
 
         bool clause(const std::vector<int> &clause) override
         {
-            rust::Vec<int> rust_clause;
-            _copy_vec_from_cxx_to_rust(clause, rust_clause);
-            return f(s, rust_clause);
+            rust::Slice<const int> slice{clause.data(), clause.size()};
+            return f(s, slice);
         }
     };
     return std::unique_ptr<ClauseIterator>(new CustomClauseIterator(initial_state, clause));
 }
 
-std::unique_ptr<WitnessIterator> new_witness_iterator(rust::Fn<bool(const rust::Vec<int> &, const rust::Vec<int> &, uint64_t)> witness)
+std::unique_ptr<WitnessIterator> new_witness_iterator(rust::Fn<bool(const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> witness)
 {
     struct CustomWitnessIterator : public WitnessIterator
     {
-        rust::Fn<bool(const rust::Vec<int> &, const rust::Vec<int> &, uint64_t)> f;
+        rust::Fn<bool(const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> f;
 
-        CustomWitnessIterator(rust::Fn<bool(const rust::Vec<int> &, const rust::Vec<int> &, uint64_t)> f) : f(f) {}
+        CustomWitnessIterator(rust::Fn<bool(const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> f) : f(f) {}
 
         bool witness(const std::vector<int> &clause, const std::vector<int> &witness, uint64_t id) override
         {
-            rust::Vec<int> rust_clause;
-            rust::Vec<int> rust_witness;
-            _copy_vec_from_cxx_to_rust(clause, rust_clause);
-            _copy_vec_from_cxx_to_rust(witness, rust_witness);
+
+            rust::Slice<const int> rust_clause{clause.data(), clause.size()};
+            rust::Slice<const int> rust_witness{witness.data(), witness.size()};
             return f(rust_clause, rust_witness, id);
         }
     };

@@ -1,8 +1,8 @@
-//! Rust bindings for the CaDiCaL SAT Solver, providing low-level access to one of the most efficient Boolean Satisfiability (SAT) solving libraries.
+//! Rust bindings for the `CaDiCaL` SAT Solver, providing low-level access to one of the most efficient Boolean Satisfiability (SAT) solving libraries.
 //!
 //! # Overview
 //!
-//! `cadical-sys` offers complete Rust bindings to the CaDiCaL SAT solver using the `cxx` crate, enabling seamless interoperability between Rust and C++ SAT solving capabilities.
+//! `cadical-sys` offers complete Rust bindings to the `CaDiCaL` SAT solver using the `cxx` crate, enabling seamless interoperability between Rust and C++ SAT solving capabilities.
 //!
 //! ## What is a SAT Solver?
 //!
@@ -13,7 +13,7 @@
 //! - Cryptanalysis
 //! - Constraint solving
 //!
-//! ## About CaDiCaL
+//! ## About `CaDiCaL`
 //!
 //! [CaDiCaL](https://github.com/arminbiere/cadical) is a state-of-the-art, modern SAT solver developed by Armin Biere. Known for its:
 //! - High performance
@@ -23,7 +23,7 @@
 //!
 //! # Features
 //!
-//! - Complete binding of CaDiCaL C++ API
+//! - Complete binding of `CaDiCaL` C++ API
 //! - Safe Rust wrappers using `cxx` (where possible)
 //! - Support for:
 //!   - Adding clauses
@@ -152,7 +152,7 @@
 //!
 //! # Performance Considerations
 //!
-//! - CaDiCaL is highly optimized for complex boolean satisfiability problems
+//! - `CaDiCaL` is highly optimized for complex boolean satisfiability problems
 //! - Recommended for problems with thousands to millions of variables
 //! - Lower overhead compared to many other SAT solvers
 //!
@@ -168,7 +168,7 @@
 //!
 //! # License
 //!
-//! CaDiCaL is distributed under the MIT License. Check the original repository for detailed licensing information.
+//! `CaDiCaL` is distributed under the MIT License. Check the original repository for detailed licensing information.
 //!
 //! # References
 //!
@@ -178,7 +178,7 @@
 //!
 //! # Acknowledgments
 //!
-//! Special thanks to Armin Biere for developing and maintaining CaDiCaL.
+//! Special thanks to Armin Biere for developing and maintaining `CaDiCaL`.
 
 use bridge::ffi;
 use cxx::UniquePtr;
@@ -265,7 +265,15 @@ impl Clone for CaDiCal {
     }
 }
 
+impl Default for CaDiCal {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CaDiCal {
+    #[must_use]
+    #[inline]
     pub fn new() -> Self {
         Self {
             solver: ffi::constructor(),
@@ -274,7 +282,7 @@ impl CaDiCal {
 
     /// Core functionality as in the IPASIR incremental SAT solver interface.
     /// (recall 'READY = CONFIGURING | STEADY  | SATISFIED | UNSATISFIED').
-    /// Further note that 'lit' is required to be different from 'INT_MIN' and
+    /// Further note that 'lit' is required to be different from '`INT_MIN`' and
     /// different from '0' except for 'add'.
     ///
     /// Add valid literal to clause or zero to terminate clause.
@@ -285,43 +293,51 @@ impl CaDiCal {
     ///
     ///   if (!lit) ensure (STEADY )        and thus READY
     ///
+    #[inline]
     pub fn add(&mut self, lit: i32) {
         ffi::add(&mut self.solver, lit);
     }
 
     /// Here are functions simplifying clause addition. The given literals
-    /// should all be valid (different from 'INT_MIN' and different from '0').
+    /// should all be valid (different from '`INT_MIN`' and different from '0').
     ///
     ///   require (VALID)
     ///   ensure (STEADY )
     ///
+    #[inline]
     pub fn clause1(&mut self, l1: i32) {
         ffi::clause1(&mut self.solver, l1);
     }
 
+    #[inline]
     pub fn clause2(&mut self, l1: i32, l2: i32) {
         ffi::clause2(&mut self.solver, l1, l2);
     }
 
+    #[inline]
     pub fn clause3(&mut self, l1: i32, l2: i32, l3: i32) {
         ffi::clause3(&mut self.solver, l1, l2, l3);
     }
 
+    #[inline]
     pub fn clause4(&mut self, l1: i32, l2: i32, l3: i32, l4: i32) {
         ffi::clause4(&mut self.solver, l1, l2, l3, l4);
     }
 
+    #[inline]
     pub fn clause5(&mut self, l1: i32, l2: i32, l3: i32, l4: i32, l5: i32) {
         ffi::clause5(&mut self.solver, l1, l2, l3, l4, l5);
     }
 
-    pub fn clause6(&mut self, v: &Vec<i32>) {
+    #[inline]
+    pub fn clause6(&mut self, v: &[i32]) {
         ffi::clause6(&mut self.solver, v);
     }
 
     /// This function can be used to check if the formula is already
     /// inconsistent (contains the empty clause or was proven to be
     /// root-level unsatisfiable).
+    #[inline]
     pub fn inconsistent(&mut self) -> bool {
         ffi::inconsistent(&mut self.solver)
     }
@@ -333,8 +349,9 @@ impl CaDiCal {
     ///   require (READY)
     ///   ensure (STEADY )
     ///
+    #[inline]
     pub fn assume(&mut self, lit: i32) {
-        ffi::assume(&mut self.solver, lit)
+        ffi::assume(&mut self.solver, lit);
     }
 
     /// Try to solve the current formula.  Returns
@@ -351,6 +368,7 @@ impl CaDiCal {
     /// i.e., from a different thread or from a signal handler.  Only right
     /// before returning from this call it goes into a 'READY' state.
     ///
+    #[inline]
     pub fn solve(&mut self) -> Status {
         ffi::solve(&mut self.solver).into()
     }
@@ -360,6 +378,7 @@ impl CaDiCal {
     ///   require (SATISFIED)
     ///   ensure (SATISFIED)
     ///
+    #[inline]
     pub fn val(&mut self, lit: i32) -> i32 {
         ffi::val(&mut self.solver, lit)
     }
@@ -392,6 +411,7 @@ impl CaDiCal {
     ///   require (SATISFIED)
     ///   ensure (SATISFIED)
     ///
+    #[inline]
     pub fn flip(&mut self, lit: i32) -> bool {
         ffi::flip(&mut self.solver, lit)
     }
@@ -402,6 +422,7 @@ impl CaDiCal {
     ///   require (SATISFIED)
     ///   ensure (SATISFIED)
     ///
+    #[inline]
     pub fn flippable(&mut self, lit: i32) -> bool {
         ffi::flippable(&mut self.solver, lit)
     }
@@ -413,6 +434,7 @@ impl CaDiCal {
     ///   require (UNSATISFIED)
     ///   ensure (UNSATISFIED)
     ///
+    #[inline]
     pub fn failed(&mut self, lit: i32) -> bool {
         ffi::failed(&mut self.solver, lit)
     }
@@ -428,6 +450,7 @@ impl CaDiCal {
     //     todo!()
     // }
 
+    #[inline]
     pub fn disconnect_terminator(&mut self) {
         ffi::disconnect_terminator(&mut self.solver);
     }
@@ -440,6 +463,7 @@ impl CaDiCal {
     // pub fn connect_learner<L: Learner>(&mut self, _learner: L) {
     //     todo!()
     // }
+    #[inline]
     pub fn disconnect_learner(&mut self) {
         ffi::disconnect_learner(&mut self.solver);
     }
@@ -452,6 +476,7 @@ impl CaDiCal {
     // pub fn connect_fixed_listener<F: FixedAssignmentListener>(&mut self, _fixed_listener: F) {
     //     todo!()
     // }
+    #[inline]
     pub fn disconnect_fixed_listener(&mut self) {
         ffi::disconnect_fixed_listener(&mut self.solver);
     }
@@ -482,9 +507,10 @@ impl CaDiCal {
     /// An observed variable is allowed to be a fresh variable and it can be
     /// added also during solving.
     ///
-    ///   require (VALID_OR_SOLVING)
-    ///   ensure (VALID_OR_SOLVING)
+    ///   require (`VALID_OR_SOLVING`)
+    ///   ensure (`VALID_OR_SOLVING`)
     ///
+    #[inline]
     pub fn add_observed_var(&mut self, var: i32) {
         ffi::add_observed_var(&mut self.solver, var);
     }
@@ -496,6 +522,7 @@ impl CaDiCal {
     ///   require (VALID)
     ///   ensure (VALID)
     ///
+    #[inline]
     pub fn remove_observed_var(&mut self, var: i32) {
         ffi::remove_observed_var(&mut self.solver, var);
     }
@@ -506,6 +533,7 @@ impl CaDiCal {
     ///   require (VALID)
     ///   ensure (VALID)
     ///
+    #[inline]
     pub fn reset_observed_vars(&mut self) {
         ffi::reset_observed_vars(&mut self.solver);
     }
@@ -514,22 +542,24 @@ impl CaDiCal {
     /// and it got assigned by a decision during the CDCL loop. Otherwise:
     /// false.
     ///
-    ///   require (VALID_OR_SOLVING)
-    ///   ensure (VALID_OR_SOLVING)
+    ///   require (`VALID_OR_SOLVING`)
+    ///   ensure (`VALID_OR_SOLVING`)
     ///
+    #[inline]
     pub fn is_decision(&mut self, lit: i32) -> bool {
         ffi::is_decision(&mut self.solver, lit)
     }
 
     /// Force solve to backtrack to certain decision level. Can be called only
-    /// during 'cb_decide' of a connected External Propagator.
+    /// during '`cb_decide`' of a connected External Propagator.
     /// Invoking in any other time will not have an effect.
     /// If the call had an effect, the External Propagator will be notified about
-    /// the backtrack via 'notify_backtrack'.
+    /// the backtrack via '`notify_backtrack`'.
     ///
     ///   require (SOLVING)
     ///   ensure (SOLVING)
     ///
+    #[inline]
     pub fn force_backtrack(&mut self, new_level: usize) {
         ffi::force_backtrack(&mut self.solver, new_level);
     }
@@ -546,8 +576,9 @@ impl CaDiCal {
     ///
     ///   require (VALID)                     /// recall 'VALID = READY |
     ///   ADDING' if (lit) ensure (ADDING)            /// and thus VALID but not
-    ///   READY if (!lit) && !adding_clause ensure (STEADY ) // and thus READY
+    ///   READY if (!lit) && !`adding_clause` ensure (STEADY ) // and thus READY
     ///
+    #[inline]
     pub fn constrain(&mut self, lit: i32) {
         ffi::constrain(&mut self.solver, lit);
     }
@@ -559,6 +590,7 @@ impl CaDiCal {
     ///   require (UNSATISFIED)
     ///   ensure (UNSATISFIED)
     ///
+    #[inline]
     pub fn constraint_failed(&mut self) -> bool {
         ffi::constraint_failed(&mut self.solver)
     }
@@ -573,24 +605,30 @@ impl CaDiCal {
     ///   require (READY)
     ///   ensure (STEADY |SATISFIED|UNSATISFIED)
     ///
+    #[inline]
     pub fn lookahead(&mut self) -> i32 {
         ffi::lookahead(&mut self.solver)
     }
 
+    #[inline]
     pub fn generate_cubes(&mut self, x: i32, min_depth: i32, result_cubes: &mut Vec<i32>) -> i32 {
         ffi::generate_cubes(&mut self.solver, x, min_depth, result_cubes)
     }
 
+    #[inline]
     pub fn reset_assumptions(&mut self) {
-        ffi::reset_assumptions(&mut self.solver)
+        ffi::reset_assumptions(&mut self.solver);
     }
 
+    #[inline]
     pub fn reset_constraint(&mut self) {
-        ffi::reset_constraint(&mut self.solver)
+        ffi::reset_constraint(&mut self.solver);
     }
 
     /// Return the current state of the solver as defined above.
     ///
+    #[must_use]
+    #[inline]
     pub fn state(&self) -> State {
         ffi::state(&self.solver).into()
     }
@@ -598,11 +636,15 @@ impl CaDiCal {
     /// Similar to 'state ()' but using the staddard competition exit codes of
     /// '10' for 'SATISFIABLE', '20' for 'UNSATISFIABLE' and '0' otherwise.
     ///
+    #[must_use]
+    #[inline]
     pub fn status(&self) -> Status {
         ffi::status(&self.solver).into()
     }
 
     /// return version string
+    #[must_use]
+    #[inline]
     pub fn version() -> String {
         ffi::version()
     }
@@ -621,6 +663,7 @@ impl CaDiCal {
     ///   other.require (CONFIGURING)
     ///   other.ensure (CONFIGURING | STEADY )
     ///
+    #[inline]
     pub fn copy(source: &CaDiCal, destination: &mut CaDiCal) {
         ffi::copy(&source.solver, &mut destination.solver);
     }
@@ -634,41 +677,49 @@ impl CaDiCal {
     ///   require (VALID | SOLVING)
     ///   ensure (VALID | SOLVING)
     ///
+    #[inline]
     pub fn vars(&mut self) -> i32 {
         ffi::vars(&mut self.solver)
     }
 
     /// Increase the maximum variable index explicitly.  This function makes
-    /// sure that at least 'min_max_var' variables are initialized.  Since it
+    /// sure that at least '`min_max_var`' variables are initialized.  Since it
     /// might need to reallocate tables, it destroys a satisfying assignment
     /// and has the same state transition and conditions as 'assume' etc.
     ///
     ///   require (READY)
     ///   ensure (STEADY )
     ///
+    #[inline]
     pub fn reserve(&mut self, min_max_var: i32) {
-        ffi::reserve(&mut self.solver, min_max_var)
+        ffi::reserve(&mut self.solver, min_max_var);
     }
 
-    /// pub fn trace_api_calls(&mut self, file: String);
+    /// pub fn `trace_api_calls(&mut` self, file: String);
 
     //------------------------------------------------------------------------
     /// Option handling.
     /// Determine whether 'name' is a valid option name.
     ///
+    #[must_use]
+    #[inline]
     pub fn is_valid_option(name: String) -> bool {
         ffi::is_valid_option(name)
     }
 
     /// Determine whether 'name' enables a specific preprocessing technique.
     ///
+    #[must_use]
+    #[inline]
     pub fn is_preprocessing_option(name: String) -> bool {
         ffi::is_preprocessing_option(name)
     }
 
     /// Determine whether 'arg' is a valid long option of the form '--<name>',
-    /// '--<name>=<val>' or '--no-<name>' similar to 'set_long_option' below.
+    /// '--<name>=<val>' or '--no-<name>' similar to '`set_long_option`' below.
     /// Legal values are 'true', 'false', or '[-]<mantissa>[e<exponent>]'.
+    #[must_use]
+    #[inline]
     pub fn is_valid_long_option(arg: String) -> bool {
         ffi::is_valid_long_option(arg)
     }
@@ -676,14 +727,16 @@ impl CaDiCal {
     /// Get the current value of the option 'name'.  If 'name' is invalid then
     /// zero is returned.  Here '--...' arguments as invalid options.
     ///
+    #[inline]
     pub fn get(&mut self, name: String) -> i32 {
         ffi::get(&mut self.solver, name)
     }
 
     /// Set the default verbose message prefix (default "c ").
     ///
+    #[inline]
     pub fn prefix(&mut self, verbose_message_prefix: String) {
-        ffi::prefix(&mut self.solver, verbose_message_prefix)
+        ffi::prefix(&mut self.solver, verbose_message_prefix);
     }
 
     /// Explicit version of setting an option.  If the option '<name>' exists
@@ -696,6 +749,7 @@ impl CaDiCal {
     ///
     /// Thus options can only bet set right after initialization.
     ///
+    #[inline]
     pub fn set(&mut self, name: String, val: i32) -> bool {
         ffi::set(&mut self.solver, name, val)
     }
@@ -705,7 +759,7 @@ impl CaDiCal {
     ///   '--<name>=<val>', '--<name>', or '--no-<name>'
     ///
     /// It actually calls the previous 'set' function after parsing 'arg'.  The
-    /// same values are expected as for 'is_valid_long_option' above and as
+    /// same values are expected as for '`is_valid_long_option`' above and as
     /// with 'set' any value outside of the range of legal values for a
     /// particular option are set to either the minimum or maximum depending on
     /// which side of the valid interval they lie.
@@ -713,12 +767,15 @@ impl CaDiCal {
     ///   require (CONFIGURING)
     ///   ensure (CONFIGURING)
     ///
+    #[inline]
     pub fn set_long_option(&mut self, arg: String) -> bool {
         ffi::set_long_option(&mut self.solver, arg)
     }
 
     /// Determine whether 'name' is a valid configuration.
     ///
+    #[must_use]
+    #[inline]
     pub fn is_valid_configuration(name: String) -> bool {
         ffi::is_valid_configuration(name)
     }
@@ -729,6 +786,7 @@ impl CaDiCal {
     ///   require (CONFIGURING)
     ///   ensure (CONFIGURING)
     ///
+    #[inline]
     pub fn configure(&mut self, name: String) -> bool {
         ffi::configure(&mut self.solver, name)
     }
@@ -739,8 +797,9 @@ impl CaDiCal {
     ///   require (READY)
     ///   ensure (READY)
     ///
+    #[inline]
     pub fn optimize(&mut self, val: i32) {
-        ffi::optimize(&mut self.solver, val)
+        ffi::optimize(&mut self.solver, val);
     }
 
     /// Specify search limits, where currently 'name' can be "conflicts",
@@ -760,9 +819,11 @@ impl CaDiCal {
     ///   require (READY)
     ///   ensure (READY)
     ///
+    #[inline]
     pub fn limit(&mut self, arg: String, val: i32) -> bool {
         ffi::limit(&mut self.solver, arg, val)
     }
+    #[inline]
     pub fn is_valid_limit(&mut self, arg: String) -> bool {
         ffi::is_valid_limit(&mut self.solver, arg)
     }
@@ -778,16 +839,22 @@ impl CaDiCal {
     ///   ensure (VALID)
     ///
     /// Number of active variables.
+    #[must_use]
+    #[inline]
     pub fn active(&self) -> i32 {
         ffi::active(&self.solver)
     }
 
     /// Number of active redundant clauses.
+    #[must_use]
+    #[inline]
     pub fn redundant(&self) -> i64 {
         ffi::redundant(&self.solver)
     }
 
     /// Number of active irredundant clauses.
+    #[must_use]
+    #[inline]
     pub fn irredundant(&self) -> i64 {
         ffi::irredundant(&self.solver)
     }
@@ -805,6 +872,7 @@ impl CaDiCal {
     ///   require (READY)
     ///   ensure (STEADY  | SATISFIED | UNSATISFIED)
     ///
+    #[inline]
     pub fn simplify(&mut self, rounds: i32) -> Status {
         ffi::simplify(&mut self.solver, rounds).into()
     }
@@ -815,8 +883,9 @@ impl CaDiCal {
     ///  require (SOLVING | READY)
     ///  ensure (STEADY )           /// actually not immediately (synchronously)
     ///
+    #[inline]
     pub fn terminate(&mut self) {
-        ffi::terminate(&mut self.solver)
+        ffi::terminate(&mut self.solver);
     }
 
     //------------------------------------------------------------------------
@@ -824,7 +893,7 @@ impl CaDiCal {
     /// We have the following common reference counting functions, which avoid
     /// to restore clauses but require substantial user guidance.  This was the
     /// only way to use inprocessing in incremental SAT solving in Lingeling
-    /// (and before in MiniSAT's 'freeze' / 'thaw') and which did not use
+    /// (and before in `MiniSAT`'s 'freeze' / 'thaw') and which did not use
     /// automatic clause restoring.  In general this is slower than
     /// restoring clauses and should not be used.
     ///
@@ -849,16 +918,20 @@ impl CaDiCal {
     ///   require (VALID)
     ///   ensure (VALID)
     ///
+    #[must_use]
+    #[inline]
     pub fn frozen(&self, lit: i32) -> bool {
         ffi::frozen(&self.solver, lit)
     }
 
+    #[inline]
     pub fn freeze(&mut self, lit: i32) {
-        ffi::freeze(&mut self.solver, lit)
+        ffi::freeze(&mut self.solver, lit);
     }
 
+    #[inline]
     pub fn melt(&mut self, lit: i32) {
-        ffi::melt(&mut self.solver, lit)
+        ffi::melt(&mut self.solver, lit);
     }
 
     //------------------------------------------------------------------------
@@ -869,6 +942,8 @@ impl CaDiCal {
     ///   require (VALID)
     ///   ensure (VALID)
     ///
+    #[must_use]
+    #[inline]
     pub fn fixed(&self, lit: i32) -> i32 {
         ffi::fixed(&self.solver, lit)
     }
@@ -876,12 +951,14 @@ impl CaDiCal {
     //------------------------------------------------------------------------
     /// Force the default decision phase of a variable to a certain value.
     ///
+    #[inline]
     pub fn phase(&mut self, lit: i32) {
-        ffi::phase(&mut self.solver, lit)
+        ffi::phase(&mut self.solver, lit);
     }
 
+    #[inline]
     pub fn unphase(&mut self, lit: i32) {
-        ffi::unphase(&mut self.solver, lit)
+        ffi::unphase(&mut self.solver, lit);
     }
 
     //------------------------------------------------------------------------
@@ -894,11 +971,13 @@ impl CaDiCal {
     ///   ensure (CONFIGURING)
     ///
     /// Write DRAT proof.
+    #[inline]
     pub fn trace_proof1(&mut self, file: String, name: String) -> bool {
         ffi::trace_proof1(&mut self.solver, file, name)
     }
 
     /// Open & write proof.
+    #[inline]
     pub fn trace_proof2(&mut self, path: String) -> bool {
         ffi::trace_proof2(&mut self.solver, path)
     }
@@ -919,8 +998,9 @@ impl CaDiCal {
     ///   require (VALID)
     ///   ensure (VALID)
     ///
+    #[inline]
     pub fn flush_proof_trace(&mut self, print: bool) {
-        ffi::flush_proof_trace(&mut self.solver, print)
+        ffi::flush_proof_trace(&mut self.solver, print);
     }
 
     /// Close proof trace early.  Similar to 'flush' we allow the user to
@@ -928,16 +1008,17 @@ impl CaDiCal {
     /// about the size of the written proof file and if compressed on-the-fly
     /// the number of actual bytes written (including deflation percentage) are
     /// printed.  Before actually closing (or detaching in case of writing to
-    /// '<stdout>') we check whether 'flush_proof_trace' was called since the
+    /// '<stdout>') we check whether '`flush_proof_trace`' was called since the
     /// last time a proof step (addition or deletion) was traced.  If this is
-    /// not the case we would call 'flush_proof_trace' with the same 'print'
+    /// not the case we would call '`flush_proof_trace`' with the same 'print'
     /// argument.
     ///
     ///   require (VALID)
     ///   ensure (VALID)
     ///
+    #[inline]
     pub fn close_proof_trace(&mut self, print: bool) {
-        ffi::close_proof_trace(&mut self.solver, print)
+        ffi::close_proof_trace(&mut self.solver, print);
     }
 
     // /// Enables clausal proof tracing with or without antecedents using
@@ -969,18 +1050,19 @@ impl CaDiCal {
 
     /// Triggers the conclusion of incremental proofs.
     /// if the solver is SATISFIED it will trigger extend ()
-    /// and give the model to the proof tracer through conclude_sat ()
+    /// and give the model to the proof tracer through `conclude_sat` ()
     /// if the solver is UNSATISFIED it will trigger failing ()
     /// which will learn new clauses as explained below:
     /// In case of failed assumptions will provide a core negated
     /// as a clause through the proof tracer interface.
     /// With a failing contraint these can be multiple clauses.
-    /// Then it will trigger a conclude_unsat event with the id(s)
+    /// Then it will trigger a `conclude_unsat` event with the id(s)
     /// of the newly learnt clauses or the id of the global conflict.
     ///
     ///   require (SATISFIED || UNSATISFIED)
     ///   ensure (SATISFIED || UNSATISFIED)
     ///
+    #[inline]
     pub fn conclude(&mut self) {
         ffi::conclude(&mut self.solver);
     }
@@ -1002,11 +1084,13 @@ impl CaDiCal {
     // }
 
     /// print usage information for long options
+    #[inline]
     pub fn usage() {
         ffi::usage();
     }
 
     /// print configuration usage options
+    #[inline]
     pub fn configurations() {
         ffi::configurations();
     }
@@ -1015,11 +1099,13 @@ impl CaDiCal {
     ///   ensure (!DELETING)
     ///
     /// print statistics
+    #[inline]
     pub fn statistics(&mut self) {
         ffi::statistics(&mut self.solver);
     }
 
     /// print resource usage (time and memory)
+    #[inline]
     pub fn resources(&mut self) {
         ffi::resources(&mut self.solver);
     }
@@ -1028,6 +1114,7 @@ impl CaDiCal {
     ///   ensure (VALID)
     ///
     /// print current option and value list
+    #[inline]
     pub fn options(&mut self) {
         ffi::options(&mut self.solver);
     }
@@ -1042,14 +1129,15 @@ impl CaDiCal {
     ///   require (VALID)
     ///   ensure (VALID)
     ///
+    #[inline]
     pub fn traverse_clauses<I: ClauseIterator>(&self, i: &mut I) -> bool {
-        fn f<I: ClauseIterator>(state: *mut u8, clause: &Vec<i32>) -> bool {
-            let ptr: *mut I = state as *mut I;
+        fn f<I: ClauseIterator>(state: *mut u8, clause: &[i32]) -> bool {
+            let ptr: *mut I = state.cast::<I>();
             let i = unsafe { &mut *ptr };
             i.clause(clause)
         }
         let mut iter =
-            unsafe { ffi::new_clause_iterator(std::ptr::from_mut(i) as *mut u8, f::<I>) };
+            unsafe { ffi::new_clause_iterator(std::ptr::from_mut(i).cast::<u8>(), f::<I>) };
         ffi::traverse_clauses(&self.solver, &mut iter)
     }
     // pub fn traverse_witnesses_backward<W: WitnessIterator>(&self, i: &mut W) -> bool {
@@ -1075,6 +1163,7 @@ impl CaDiCal {
     ///   require (VALID)
     ///   ensure (VALID)
     ///
+    #[inline]
     pub fn read_dimacs1(
         &mut self,
         file: String,
@@ -1085,6 +1174,7 @@ impl CaDiCal {
         ffi::read_dimacs1(&mut self.solver, file, name, vars, strict)
     }
 
+    #[inline]
     pub fn read_dimacs2(&mut self, path: String, vars: &mut i32, strict: i32) -> String {
         ffi::read_dimacs2(&mut self.solver, path, vars, strict)
     }
@@ -1094,6 +1184,7 @@ impl CaDiCal {
     /// parser finds and 'p inccnf' header or cubes then '*incremental' is set
     /// to true and the cubes are stored in the given vector (each cube
     /// terminated by a zero).
+    #[inline]
     pub fn read_dimacs3(
         &mut self,
         file: String,
@@ -1114,6 +1205,7 @@ impl CaDiCal {
         )
     }
 
+    #[inline]
     pub fn read_dimacs4(
         &mut self,
         path: String,
@@ -1130,7 +1222,7 @@ impl CaDiCal {
     /// to a file in DIMACS format.  Clauses on the extension stack are
     /// not included, nor any redundant clauses.
     ///
-    /// The 'min_max_var' parameter gives a lower bound on the number '<vars>'
+    /// The '`min_max_var`' parameter gives a lower bound on the number '<vars>'
     /// of variables used in the DIMACS 'p cnf <vars> ...' header.
     ///
     /// Returns zero if successful and otherwise an error message.
@@ -1138,12 +1230,14 @@ impl CaDiCal {
     ///   require (VALID)
     ///   ensure (VALID)
     ///
+    #[inline]
     pub fn write_dimacs(&mut self, path: String, min_max_var: i32) -> String {
         ffi::write_dimacs(&mut self.solver, path, min_max_var)
     }
 
     /// The extension stack for reconstruction a solution can be written too.
     ///
+    #[inline]
     pub fn write_extension(&mut self, path: String) -> String {
         ffi::write_extension(&mut self.solver, path)
     }
@@ -1151,8 +1245,9 @@ impl CaDiCal {
     /// Print build configuration to a file with prefix 'c '.  If the file
     /// is '<stdout>' or '<stderr>' then terminal color codes might be used.
     ///
+    #[inline]
     pub fn build(file: String, prefix: String) {
-        ffi::build(file, prefix)
+        ffi::build(file, prefix);
     }
 }
 
@@ -1199,7 +1294,7 @@ pub trait ExternalPropagator {
     /// The notification is not necessarily eager. It usually happens before
     /// the call of propagator callbacks and when a driving clause is leading
     /// to an assignment.
-    fn notify_assignment(&mut self, lits: &Vec<i32>);
+    fn notify_assignment(&mut self, lits: &[i32]);
 
     fn notify_new_decision_level(&mut self);
 
@@ -1208,7 +1303,7 @@ pub trait ExternalPropagator {
     /// Check by the external propagator the found complete solution (after
     /// solution reconstruction). If it returns false, the propagator must
     /// provide an external clause during the next callback.
-    fn cb_check_found_model(&self, model: &Vec<i32>) -> bool;
+    fn cb_check_found_model(&self, model: &[i32]) -> bool;
 
     /// Ask the external propagator for the next decision literal. If it
     /// returns 0, the solver makes its own choice.
@@ -1225,12 +1320,12 @@ pub trait ExternalPropagator {
     }
 
     /// Ask the external propagator for the reason clause of a previous
-    /// external propagation step (done by cb_propagate). The clause must be
+    /// external propagation step (done by `cb_propagate`). The clause must be
     /// added literal-by-literal closed with a 0. Further, the clause must
     /// contain the propagated literal.
     ///
     /// The clause will be learned as an Irredundant Non-Forgettable Clause (see
-    /// below at 'cb_has_external_clause' more details about it).
+    /// below at '`cb_has_external_clause`' more details about it).
     fn cb_add_reason_clause_lit(&self, _propagated_lit: i32) -> i32 {
         0
     }
@@ -1267,7 +1362,7 @@ pub trait ExternalPropagator {
     /// input after the query line).
     ///
     /// Reason clauses of external propagation steps are assumed to be
-    /// forgettable, parameter 'reason_forgettable' can be used to change it.
+    /// forgettable, parameter '`reason_forgettable`' can be used to change it.
     ///
     /// Currently, every external clause is expected to be over observed
     /// (therefore frozen) variables, hence no tainting or restore steps
@@ -1286,14 +1381,14 @@ pub trait ExternalPropagator {
 ///
 /// If 'clause' returns false traversal aborts early.
 pub trait ClauseIterator {
-    fn clause(&mut self, clause: &Vec<i32>) -> bool;
+    fn clause(&mut self, clause: &[i32]) -> bool;
 }
 
 /// Allows to traverse all clauses on the extension stack together with their
 /// witness cubes.  If the solver is inconsistent, i.e., an empty clause is
 /// found and the formula is unsatisfiable, then nothing is traversed.
 ///
-/// The clauses traversed in 'traverse_clauses' together with the clauses on
+/// The clauses traversed in '`traverse_clauses`' together with the clauses on
 /// the extension stack are logically equivalent to the original clauses.
 /// See our SAT'19 paper for more details.
 ///
@@ -1304,5 +1399,5 @@ pub trait ClauseIterator {
 ///
 /// If 'witness' returns false traversal aborts early.
 pub trait WitnessIterator {
-    fn witness(&mut self, clause: &Vec<i32>, witness: &Vec<i32>, id: u64) -> bool;
+    fn witness(&mut self, clause: &[i32], witness: &[i32], id: u64) -> bool;
 }

@@ -12,7 +12,8 @@ fn init_submodules() {
         .expect("Failed to execute git submodule update --init.");
 }
 
-fn compile_cadical() -> Result<(), String> {
+fn compile_cadical() {
+    const CADICAL_PATH: &str = "cadical";
     let mut build = cxx_build::bridge("src/bridge.rs");
 
     build.cpp(true).flag_if_supported("-std=c++11");
@@ -25,7 +26,6 @@ fn compile_cadical() -> Result<(), String> {
     build.define("NTRACING", None);
     build.define("QUIET", None);
 
-    const CADICAL_PATH: &str = "cadical";
     let version = std::fs::read_to_string(format!("{CADICAL_PATH}/VERSION"))
         .expect("missing cadical submodule");
     let version = format!("\"{}\"", version.trim());
@@ -84,12 +84,9 @@ fn compile_cadical() -> Result<(), String> {
 
     // Compile cxx bridge
     build.compile("cadical-rs-bridge");
-
-    Ok(())
 }
 
-fn main() -> Result<(), String> {
+fn main() {
     init_submodules();
-    compile_cadical()?;
-    Ok(())
+    compile_cadical();
 }
