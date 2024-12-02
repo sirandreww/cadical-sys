@@ -56,6 +56,16 @@ void _copy_vec_from_cxx_to_rust(const std::vector<T> &source, rust::Vec<T> &dest
     }
 }
 
+rust::String _convert_char_to_rust_string(const char *str)
+{
+    if (str == NULL)
+    {
+        return rust::String("Null");
+    } else {
+        return rust::String(str);
+    }
+}
+
 // ************************************************************************************************
 // API
 // ************************************************************************************************
@@ -67,7 +77,7 @@ std::unique_ptr<Solver> constructor()
 
 rust::String signature()
 {
-    return Solver::signature();
+    return _convert_char_to_rust_string(Solver::signature());
 }
 
 void add(std::unique_ptr<Solver> &solver, int literal)
@@ -559,12 +569,12 @@ rust::String read_dimacs1(std::unique_ptr<Solver> &solver, rust::String file, ru
     FILE *fptr = _read_file(file, "r");
     auto r = solver->read_dimacs(fptr, name.c_str(), vars, strict);
     fclose(fptr);
-    return r;
+    return _convert_char_to_rust_string(r);
 }
 
 rust::String read_dimacs2(std::unique_ptr<Solver> &solver, rust::String path, int &vars, int strict)
 {
-    return solver->read_dimacs(path.c_str(), vars, strict);
+    return _convert_char_to_rust_string(solver->read_dimacs(path.c_str(), vars, strict));
 }
 
 rust::String read_dimacs3(std::unique_ptr<Solver> &solver, rust::String file, rust::String name, int &vars,
@@ -577,7 +587,7 @@ rust::String read_dimacs3(std::unique_ptr<Solver> &solver, rust::String file, ru
     fclose(fptr);
     _copy_vec_from_cxx_to_rust(internal_cubes, cubes);
 
-    return r;
+    return _convert_char_to_rust_string(r);
 }
 
 rust::String read_dimacs4(std::unique_ptr<Solver> &solver, rust::String path, int &vars, int strict,
@@ -586,17 +596,17 @@ rust::String read_dimacs4(std::unique_ptr<Solver> &solver, rust::String path, in
     std::vector<int> internal_cubes;
     auto r = solver->read_dimacs(path.c_str(), vars, strict, incremental, internal_cubes);
     _copy_vec_from_cxx_to_rust(internal_cubes, cubes);
-    return r;
+    return _convert_char_to_rust_string(r);
 }
 
 rust::String write_dimacs(std::unique_ptr<Solver> &solver, rust::String path, int min_max_var)
 {
-    return solver->write_dimacs(path.c_str(), min_max_var);
+    return _convert_char_to_rust_string(solver->write_dimacs(path.c_str(), min_max_var));
 }
 
 rust::String write_extension(std::unique_ptr<Solver> &solver, rust::String path)
 {
-    return solver->write_extension(path.c_str());
+    return _convert_char_to_rust_string(solver->write_extension(path.c_str()));
 }
 
 void build(rust::String file, rust::String prefix)

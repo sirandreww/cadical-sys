@@ -69,11 +69,11 @@ jobs:
       - run: cargo test --all-features --doc
       - run: cargo doc --all-features
       # run test suite
-      - run: cargo test --verbose
+      - run: CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind --error-exitcode=1" cargo test --verbose
       # test cargo clean
       - run: cargo clean --verbose
       # run test suite
-      - run: cargo test --verbose
+      - run: CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind --error-exitcode=1" cargo test --verbose
       
 
   #################################################################################################
@@ -184,7 +184,7 @@ jobs:
   #################################################################################################
 
   chainging-linker-entirely:
-    name: Chainging linker entirely
+    name: Changing linker entirely
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
