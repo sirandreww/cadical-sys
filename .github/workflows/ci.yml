@@ -48,7 +48,7 @@ jobs:
     # job will run on ubuntu-latest
     runs-on: ubuntu-latest
     # job timeout, shouldn't take longer really
-    timeout-minutes: 5
+    timeout-minutes: 10
     # job steps
     steps:
       # This action checks-out your repository under $GITHUB_WORKSPACE, so your workflow can access it.
