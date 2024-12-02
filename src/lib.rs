@@ -182,6 +182,9 @@
 
 use bridge::ffi;
 use cxx::UniquePtr;
+
+/// This module contains the FFI bindings to the CaDiCaL SAT solver.
+/// Some functions are unsafe due to necessity.
 pub mod bridge;
 
 /// The SAT competition standardized the exit code of SAT solvers to the

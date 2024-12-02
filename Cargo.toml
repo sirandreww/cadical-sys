@@ -1,13 +1,13 @@
 [package]
 name = "cadical-sys"
-description = "Complete and Safe bindings for the CaDiCal SAT solver, made using the cxx crate."
+description = "Almost complete safe and unsafe bindings for the CaDiCal SAT solver. Made using the cxx crate and then wrapped in a safe 1 to 1 API."
 version = "0.2.0"
 edition = "2021"
 license = "MIT"
 links = "cadical"
 repository = "https://github.com/sirandreww/cadical-sys.git"
 authors = ["Andrew Luka"]
-categories = ["system-programming", "development-tools", "SAT-solver"]
+categories = ["api-bindings", "development-tools::ffi", "external-ffi-bindings"]
 keywords = ["cadical", "sat-solver", "bindings", "system-level", "safe"]
 readme = "README.md"
 
