@@ -59,7 +59,9 @@ pub mod ffi {
         /// Function that makes clause from any slice of integers.
         ///
         /// # Safety
+        ///
         /// This function must be called with a valid pointer to a slice of integers.
+        #[allow(clippy::missing_safety_doc)]
         pub unsafe fn clause7(solver: &mut UniquePtr<Solver>, ptr: *const i32, n: usize);
 
         /// This function can be used to check if the formula is already
@@ -806,6 +808,7 @@ pub mod ffi {
         /// there to allow the state changes. Where the pointer points to a
         /// generic state that the user of this function wants. This pointer must
         /// remain valid throughout propagation.
+        #[allow(clippy::missing_safety_doc)]
         pub unsafe fn new_clause_iterator(
             s: *mut u8,
             clause: unsafe fn(*mut u8, &[i32]) -> bool,

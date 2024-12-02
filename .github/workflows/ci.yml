@@ -58,11 +58,11 @@ jobs:
       # used by popular Rust projects to check formatting
       - run: cargo fmt --all --check
       # check is a weaker version of clippy but it is faster
-      # - run: cargo check --all-targets --all-features
+      - run: cargo check --all-targets --all-features
       # source https://doc.rust-lang.org/nightly/clippy/continuous_integration/github_actions.html
-      # - run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: cargo clippy --all-targets --all-features -- -D warnings
       # A more pedantic version that should probably be used in the future, but it is too much for now
-      # - run: cargo clippy --all-targets --all-features -- -D warnings -Dclippy::all -Dclippy::pedantic
+      - run: cargo clippy --all-targets --all-features -- -D warnings -Dclippy::all -Dclippy::pedantic
       # try and build the project
       - run: cargo build --verbose
       # source https://github.com/dtolnay/syn/blob/master/.github/workflows/ci.yml
