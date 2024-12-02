@@ -1,3 +1,6 @@
+use std::{cell::RefCell, rc::Rc, sync::Arc};
+
+use cadical_sys::{CaDiCal, ClauseIterator};
 use rand::Rng;
 
 fn get_random_cnf<R: Rng>(rng: &mut R) -> Vec<Vec<i32>> {
@@ -32,23 +35,30 @@ fn random_test() {
         let cnf = get_random_cnf(&mut rng);
 
         // make solver
-        let mut solver = cadical_sys::constructor();
+        let mut solver = CaDiCal::new();
 
         for clause in &cnf {
-            cadical_sys::clause6(&mut solver, clause);
+            solver.clause6(clause);
         }
 
-        cadical_sys::simplify(&mut solver, 3);
+        solver.simplify(3);
 
-        let mut v = vec![];
-
-        fn clause_iter(clause: &Vec<i32>) {
-            v.push(clause.clone());
+        struct CI {
+            v: Vec<Vec<i32>>,
         }
 
-        cadical_sys::new_clause_iterator(clause_iter);
+        impl ClauseIterator for CI {
+            fn clause(&mut self, clause: &Vec<i32>) -> bool {
+                self.v.push(clause.clone());
+                true
+            }
+        }
 
-        for clause in &v {
+        let mut i = CI { v: Vec::new() };
+
+        solver.traverse_clauses(&mut i);
+
+        for clause in i.v.iter() {
             println!("{:?}", clause);
         }
     }

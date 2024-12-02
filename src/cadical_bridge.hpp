@@ -606,19 +606,20 @@ void build(rust::String file, rust::String prefix)
     fclose(fptr);
 }
 
-
 // ************************************************************************************************
 // These functions make the objects that can be attached to the solver
 // ************************************************************************************************
 
 std::unique_ptr<Terminator> new_terminator(rust::Fn<bool()> terminate)
 {
-    struct CustomTerminator: public Terminator {
+    struct CustomTerminator : public Terminator
+    {
         rust::Fn<bool()> f;
 
-        CustomTerminator(rust::Fn<bool()> f): f(f) {}
+        CustomTerminator(rust::Fn<bool()> f) : f(f) {}
 
-        bool terminate() override {
+        bool terminate() override
+        {
             return f();
         }
     };
@@ -627,64 +628,71 @@ std::unique_ptr<Terminator> new_terminator(rust::Fn<bool()> terminate)
 
 std::unique_ptr<Learner> new_learner(rust::Fn<bool(int)> learning, rust::Fn<void(int)> learn)
 {
-    struct CustomLearner: public Learner {
+    struct CustomLearner : public Learner
+    {
         rust::Fn<bool(int)> f;
         rust::Fn<void(int)> h;
 
-        CustomLearner(rust::Fn<bool(int)> f, rust::Fn<void(int)> h): f(f), h(h) {}
+        CustomLearner(rust::Fn<bool(int)> f, rust::Fn<void(int)> h) : f(f), h(h) {}
 
-        bool learning(int size) override {
+        bool learning(int size) override
+        {
             return f(size);
         }
 
-        void learn(int lit) override {
+        void learn(int lit) override
+        {
             h(lit);
         }
     };
     return std::unique_ptr<Learner>(new CustomLearner(learning, learn));
 }
 
-
 std::unique_ptr<FixedAssignmentListener> new_fixed_assignment_listener(rust::Fn<void(int)> notify_fixed_assignment)
 {
-    struct CustomFixedAssignmentListener: public FixedAssignmentListener {
+    struct CustomFixedAssignmentListener : public FixedAssignmentListener
+    {
         rust::Fn<void(int)> f;
 
-        CustomFixedAssignmentListener(rust::Fn<void(int)> f): f(f) {}
+        CustomFixedAssignmentListener(rust::Fn<void(int)> f) : f(f) {}
 
-        void notify_fixed_assignment(int lit) override {
+        void notify_fixed_assignment(int lit) override
+        {
             f(lit);
         }
     };
     return std::unique_ptr<FixedAssignmentListener>(new CustomFixedAssignmentListener(notify_fixed_assignment));
 }
 
-
-
-std::unique_ptr<ClauseIterator> new_clause_iterator(rust::Fn<bool(const rust::Vec<int> &)> clause )
+std::unique_ptr<ClauseIterator> new_clause_iterator(uint8_t* initial_state, rust::Fn<bool(uint8_t*, const rust::Vec<int> &)> clause)
 {
-    struct CustomClauseIterator: public ClauseIterator {
-        rust::Fn<bool(const rust::Vec<int> &)> f;
+    struct CustomClauseIterator : public ClauseIterator
+    {
+        rust::Fn<bool(uint8_t*, const rust::Vec<int> &)> f;
+        uint8_t* s;
 
-        CustomClauseIterator(rust::Fn<bool(const rust::Vec<int> &)> f): f(f) {}
+        CustomClauseIterator(uint8_t* s,rust::Fn<bool(uint8_t*, const rust::Vec<int> &)> f) : f(f), s(s) {}
 
-        bool clause(const std::vector<int> &clause) override {
+        bool clause(const std::vector<int> &clause) override
+        {
             rust::Vec<int> rust_clause;
             _copy_vec_from_cxx_to_rust(clause, rust_clause);
-            return f(rust_clause);
+            return f(s, rust_clause);
         }
     };
-    return std::unique_ptr<ClauseIterator>(new CustomClauseIterator(clause));
+    return std::unique_ptr<ClauseIterator>(new CustomClauseIterator(initial_state, clause));
 }
 
-std::unique_ptr<WitnessIterator> new_witness_iterator(rust::Fn<bool(const rust::Vec<int> &, const rust::Vec<int> &, uint64_t)> witness )
+std::unique_ptr<WitnessIterator> new_witness_iterator(rust::Fn<bool(const rust::Vec<int> &, const rust::Vec<int> &, uint64_t)> witness)
 {
-    struct CustomWitnessIterator: public WitnessIterator {
+    struct CustomWitnessIterator : public WitnessIterator
+    {
         rust::Fn<bool(const rust::Vec<int> &, const rust::Vec<int> &, uint64_t)> f;
 
-        CustomWitnessIterator(rust::Fn<bool(const rust::Vec<int> &, const rust::Vec<int> &, uint64_t)> f): f(f) {}
+        CustomWitnessIterator(rust::Fn<bool(const rust::Vec<int> &, const rust::Vec<int> &, uint64_t)> f) : f(f) {}
 
-        bool witness(const std::vector<int> &clause, const std::vector<int> &witness, uint64_t id) override {
+        bool witness(const std::vector<int> &clause, const std::vector<int> &witness, uint64_t id) override
+        {
             rust::Vec<int> rust_clause;
             rust::Vec<int> rust_witness;
             _copy_vec_from_cxx_to_rust(clause, rust_clause);

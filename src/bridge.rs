@@ -35,8 +35,8 @@ pub mod ffi {
         ///
         /// Add valid literal to clause or zero to terminate clause.
         ///
-        ///   require (VALID)                  /// recall 'VALID = READY | ADDING'
-        ///   if (lit) ensure (ADDING)         /// and thus VALID but not READY
+        ///   require (VALID)                  // recall 'VALID = READY | ADDING'
+        ///   if (lit) ensure (ADDING)         // and thus VALID but not READY
         ///   if (!lit) ensure (STEADY )       // and thus READY
         ///
         pub fn add(solver: &mut UniquePtr<Solver>, literal: i32);
@@ -784,7 +784,10 @@ pub mod ffi {
         /// is inconsistent only the empty clause is traversed.
         ///
         /// If 'clause' returns false traversal aborts early.
-        pub fn new_clause_iterator(clause: fn(&Vec<i32>) -> bool) -> UniquePtr<ClauseIterator>;
+        pub unsafe fn new_clause_iterator(
+            s: *mut u8,
+            clause: unsafe fn(*mut u8, &Vec<i32>) -> bool,
+        ) -> UniquePtr<ClauseIterator>;
 
         /// Allows to traverse all clauses on the extension stack together with their
         /// witness cubes.  If the solver is inconsistent, i.e., an empty clause is
