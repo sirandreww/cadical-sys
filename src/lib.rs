@@ -695,7 +695,7 @@ impl CaDiCal {
         ffi::reserve(&mut self.solver, min_max_var);
     }
 
-    /// pub fn `trace_api_calls(&mut` self, file: String);
+    // pub fn `trace_api_calls(&mut` self, file: String);
 
     //------------------------------------------------------------------------
     /// Option handling.
@@ -1140,12 +1140,30 @@ impl CaDiCal {
             unsafe { ffi::new_clause_iterator(std::ptr::from_mut(i).cast::<u8>(), f::<I>) };
         ffi::traverse_clauses(&self.solver, &mut iter)
     }
-    // pub fn traverse_witnesses_backward<W: WitnessIterator>(&self, i: &mut W) -> bool {
-    //     todo!()
-    // }
-    // pub fn traverse_witnesses_forward<W: WitnessIterator>(&self, i: &mut W) -> bool {
-    //     todo!()
-    // }
+
+    #[inline]
+    pub fn traverse_witnesses_backward<I: WitnessIterator>(&self, i: &mut I) -> bool {
+        fn f<I: WitnessIterator>(state: *mut u8, clause: &[i32], witness: &[i32], id: u64) -> bool {
+            let ptr: *mut I = state.cast::<I>();
+            let i = unsafe { &mut *ptr };
+            i.witness(clause, witness, id)
+        }
+        let mut iter =
+            unsafe { ffi::new_witness_iterator(std::ptr::from_mut(i).cast::<u8>(), f::<I>) };
+        ffi::traverse_witnesses_backward(&self.solver, &mut iter)
+    }
+
+    #[inline]
+    pub fn traverse_witnesses_forward<I: WitnessIterator>(&self, i: &mut I) -> bool {
+        fn f<I: WitnessIterator>(state: *mut u8, clause: &[i32], witness: &[i32], id: u64) -> bool {
+            let ptr: *mut I = state.cast::<I>();
+            let i = unsafe { &mut *ptr };
+            i.witness(clause, witness, id)
+        }
+        let mut iter =
+            unsafe { ffi::new_witness_iterator(std::ptr::from_mut(i).cast::<u8>(), f::<I>) };
+        ffi::traverse_witnesses_forward(&self.solver, &mut iter)
+    }
 
     //------------------------------------------------------------------------
     /// Files with explicit path argument support compressed input and output
@@ -1278,7 +1296,6 @@ use std::vec::Vec;
 /// Allows to connect an external propagator to propagate values to variables
 /// with an external clause as a reason or to learn new clauses during the
 /// CDCL loop (without restart).
-
 pub trait ExternalPropagator {
     /// lazy propagator only checks complete assignments
     fn is_lazy(&self) -> bool {

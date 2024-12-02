@@ -694,21 +694,22 @@ std::unique_ptr<ClauseIterator> new_clause_iterator(uint8_t *initial_state, rust
     return std::unique_ptr<ClauseIterator>(new CustomClauseIterator(initial_state, clause));
 }
 
-std::unique_ptr<WitnessIterator> new_witness_iterator(rust::Fn<bool(const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> witness)
+std::unique_ptr<WitnessIterator> new_witness_iterator(uint8_t * initial_state, rust::Fn<bool(uint8_t *, const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> witness)
 {
     struct CustomWitnessIterator : public WitnessIterator
     {
-        rust::Fn<bool(const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> f;
+        rust::Fn<bool(uint8_t *, const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> f;
+        uint8_t *s;
 
-        CustomWitnessIterator(rust::Fn<bool(const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> f) : f(f) {}
+        CustomWitnessIterator(uint8_t *s, rust::Fn<bool(uint8_t *, const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> f) : f(f), s(s) {}
 
         bool witness(const std::vector<int> &clause, const std::vector<int> &witness, uint64_t id) override
         {
 
             rust::Slice<const int> rust_clause{clause.data(), clause.size()};
             rust::Slice<const int> rust_witness{witness.data(), witness.size()};
-            return f(rust_clause, rust_witness, id);
+            return f(s, rust_clause, rust_witness, id);
         }
     };
-    return std::unique_ptr<WitnessIterator>(new CustomWitnessIterator(witness));
+    return std::unique_ptr<WitnessIterator>(new CustomWitnessIterator(initial_state, witness));
 }

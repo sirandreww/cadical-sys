@@ -802,12 +802,12 @@ pub mod ffi {
         ///
         /// If 'clause' returns false traversal aborts early.
         ///
-        /// # Safety\n
+        /// # Safety
         ///
         /// The pointers in this function and in the function passed to it are
         /// there to allow the state changes. Where the pointer points to a
         /// generic state that the user of this function wants. This pointer must
-        /// remain valid throughout propagation.
+        /// remain valid throughout the run.
         #[allow(clippy::missing_safety_doc)]
         pub unsafe fn new_clause_iterator(
             s: *mut u8,
@@ -828,8 +828,17 @@ pub mod ffi {
         /// All derived units of non-frozen variables are included too.
         ///
         /// If 'witness' returns false traversal aborts early.
-        pub fn new_witness_iterator(
-            witness: fn(&[i32], &[i32], u64) -> bool,
+        ///
+        /// # Safety
+        ///
+        /// The pointers in this function and in the function passed to it are
+        /// there to allow the state changes. Where the pointer points to a
+        /// generic state that the user of this function wants. This pointer must
+        /// remain valid throughout the run.
+        #[allow(clippy::missing_safety_doc)]
+        pub unsafe fn new_witness_iterator(
+            s: *mut u8,
+            witness: unsafe fn(*mut u8, &[i32], &[i32], u64) -> bool,
         ) -> UniquePtr<WitnessIterator>;
     }
 }

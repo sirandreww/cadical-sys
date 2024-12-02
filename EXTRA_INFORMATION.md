@@ -23,3 +23,16 @@ To run valgrind run:
 ```
 cargo valgrind test --verbose
 ```
+
+# Running complete CI
+
+```
+cargo clean &&
+cargo fmt --all &&
+git add . &&
+cargo fmt --all --check &&
+cargo clippy --all-targets --all-features -- -D warnings &&
+cargo clippy --all-targets --all-features -- -D warnings -Dclippy::all -Dclippy::pedantic &&
+cargo test --all-features --doc &&
+cargo test --verbose
+```
