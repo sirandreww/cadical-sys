@@ -163,6 +163,7 @@ cadical-sys = "0.1.0"  # Replace with most recent version
 - Requires understanding of boolean logic and SAT solving
 - Performance depends on problem complexity
 - Advanced features require deep knowledge of SAT solving techniques
+- Connecting listeners and propagators is not implemented well enough. Please let me know if you need this feature. 
 
 ## Contributing
 

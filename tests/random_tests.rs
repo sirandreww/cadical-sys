@@ -1,4 +1,4 @@
-use cadical_sys::{CaDiCal, ClauseIterator, Learner, Status, Terminator};
+use cadical_sys::{CaDiCal, ClauseIterator, Learner, Status, Terminator, WitnessIterator};
 use rand::Rng;
 
 fn get_random_cnf<R: Rng>(rng: &mut R) -> Vec<Vec<i32>> {
@@ -20,20 +20,33 @@ fn get_random_cnf<R: Rng>(rng: &mut R) -> Vec<Vec<i32>> {
     cnf
 }
 
+struct CI {
+    v: Vec<Vec<i32>>,
+}
+
+impl ClauseIterator for CI {
+    fn clause(&mut self, clause: &[i32]) -> bool {
+        self.v.push(clause.to_vec());
+        true
+    }
+}
+
+struct WI {
+    v: Vec<(Vec<i32>, Vec<i32>, u64)>,
+}
+
+impl WitnessIterator for WI {
+    fn witness(&mut self, clause: &[i32], witness: &[i32], id: u64) -> bool {
+        self.v.push((clause.to_vec(), witness.to_vec(), id));
+        true
+    }
+}
+
 // valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --log-file=valgrind-out.txt cargo test --package cadical-sys --test random_tests -- random_test --exact --nocapture
 #[test]
 fn random_test() {
     const ITERATIONS: usize = 10000;
-    struct CI {
-        v: Vec<Vec<i32>>,
-    }
 
-    impl ClauseIterator for CI {
-        fn clause(&mut self, clause: &[i32]) -> bool {
-            self.v.push(clause.to_vec());
-            true
-        }
-    }
     let mut rng = rand::thread_rng();
 
     for i in 0..ITERATIONS {
@@ -229,6 +242,59 @@ fn terminator_memory_test() {
 
         if i % 2 == 0 {
             solver.disconnect_terminator();
+        }
+    }
+}
+
+#[test]
+fn frozen_and_simplify_test() {
+    let mut solver = CaDiCal::new();
+
+    solver.clause6(&[3, 4, 5]);
+    solver.clause6(&[-3, 4, -5]);
+    solver.clause6(&[3, -4, -5]);
+    solver.clause6(&[-3, -4, -5]);
+
+    println!("Clauses in Solver");
+    let mut it = CI { v: Vec::new() };
+    solver.traverse_clauses(&mut it);
+    for c in it.v.iter() {
+        println!("{:?}", c);
+    }
+
+    println!("Is frozen: {}", solver.frozen(5));
+    solver.freeze(3);
+    solver.freeze(4);
+    solver.freeze(5);
+
+    println!("Is frozen: {}", solver.frozen(5));
+    println!("Clauses after freeze");
+    it.v.clear();
+    solver.traverse_clauses(&mut it);
+    for c in it.v.iter() {
+        println!("{:?}", c);
+    }
+
+    let r = solver.simplify(3);
+    println!("Simplify result: {:?}", r);
+
+    if true {
+        println!("Clauses after simplify");
+        it.v.clear();
+        solver.traverse_clauses(&mut it);
+        for c in it.v.iter() {
+            println!("{:?}", c);
+        }
+
+        println!("Witness");
+        let mut it = WI { v: Vec::new() };
+        solver.traverse_witnesses_forward(&mut it);
+        for c in it.v.iter() {
+            println!("{:?}", c);
+        }
+
+        for l in [3, 4, 5] {
+            println!("Value of {} is {}", l, solver.fixed(l));
         }
     }
 }
