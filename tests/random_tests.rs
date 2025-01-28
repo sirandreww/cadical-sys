@@ -258,8 +258,8 @@ fn frozen_and_simplify_test() {
     println!("Clauses in Solver");
     let mut it = CI { v: Vec::new() };
     solver.traverse_clauses(&mut it);
-    for c in it.v.iter() {
-        println!("{:?}", c);
+    for c in &it.v {
+        println!("{c:?}");
     }
 
     println!("Is frozen: {}", solver.frozen(5));
@@ -271,26 +271,26 @@ fn frozen_and_simplify_test() {
     println!("Clauses after freeze");
     it.v.clear();
     solver.traverse_clauses(&mut it);
-    for c in it.v.iter() {
-        println!("{:?}", c);
+    for c in &it.v {
+        println!("{c:?}");
     }
 
     let r = solver.simplify(3);
-    println!("Simplify result: {:?}", r);
+    println!("Simplify result: {r:?}");
 
     if true {
         println!("Clauses after simplify");
         it.v.clear();
         solver.traverse_clauses(&mut it);
-        for c in it.v.iter() {
-            println!("{:?}", c);
+        for c in &it.v {
+            println!("{c:?}");
         }
 
         println!("Witness");
         let mut it = WI { v: Vec::new() };
         solver.traverse_witnesses_forward(&mut it);
-        for c in it.v.iter() {
-            println!("{:?}", c);
+        for c in &it.v {
+            println!("{c:?}");
         }
 
         for l in [3, 4, 5] {

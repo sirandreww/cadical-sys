@@ -48,7 +48,7 @@ fn compile_cadical() {
         let path_str = path.to_str().unwrap().to_string();
         if Path::new(&path_str)
             .extension()
-            .map_or(false, |ext| ext.eq_ignore_ascii_case("cpp"))
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("cpp"))
             && (!path_str.ends_with("/cadical.cpp"))
         {
             files.push(path_str);
