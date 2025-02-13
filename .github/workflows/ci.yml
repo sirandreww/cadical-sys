@@ -142,14 +142,14 @@ jobs:
   # Windows job
   #################################################################################################
 
-  # mac-os:
-  #   name: MacOS
-  #   runs-on: macos-latest
-  #   timeout-minutes: 4
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - uses: dtolnay/rust-toolchain@stable
-  #     - run: cargo test --verbose
+  mac-os:
+    name: MacOS
+    runs-on: macos-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --verbose
 
   #################################################################################################
   # Clang in Ubuntu
