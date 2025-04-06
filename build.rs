@@ -26,9 +26,7 @@ fn compile_cadical() {
     build.define("NTRACING", None);
     build.define("QUIET", None);
 
-    if cfg!(target_os = "macos") {
-        build.define("NCLOSEFROM", None);
-    }
+    build.define("NCLOSEFROM", None);
 
     let version = std::fs::read_to_string(format!("{CADICAL_PATH}/VERSION"))
         .expect("missing cadical submodule");
