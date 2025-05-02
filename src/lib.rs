@@ -528,38 +528,32 @@ impl CaDiCal {
     /// Add call-back which allows to learn, propagate and backtrack based on
     /// external constraints. Only one external propagator can be connected
     /// and after connection every related variables must be 'observed' (use
-    /// 'add_observed_var' function).
+    /// '`add_observed_var`' function).
     /// Disconnection of the external propagator resets all the observed
     /// variables.
     ///
     ///   require (VALID)
     ///   ensure (VALID)
     ///
+    #[allow(clippy::missing_panics_doc)]
     pub fn connect_external_propagator<'a, 'b: 'a, T: ExternalPropagator>(
         &'a mut self,
         propagator: &'b mut T,
     ) {
-        // prepare propagation functions
-        // bool is_lazy,
-        let is_lazy = propagator.is_lazy();
-        // bool are_reasons_forgettable,
-        let are_reasons_forgettable = propagator.are_reasons_forgettable();
-        // rust::Fn<void(uint8_t *, const rust::Slice<const int32_t>)> notify_assignment,
         fn notify_assignment<T: ExternalPropagator>(state: *mut u8, x: &[i32]) {
             let ptr: *mut T = state.cast::<T>();
             let i = unsafe { &mut *ptr };
-            i.notify_assignment(x)
+            i.notify_assignment(x);
         }
-
         fn notify_new_decision_level<T: ExternalPropagator>(state: *mut u8) {
             let ptr: *mut T = state.cast::<T>();
             let i = unsafe { &mut *ptr };
-            i.notify_new_decision_level()
+            i.notify_new_decision_level();
         }
         fn notify_backtrack<T: ExternalPropagator>(state: *mut u8, x: usize) {
             let ptr: *mut T = state.cast::<T>();
             let i = unsafe { &mut *ptr };
-            i.notify_backtrack(x)
+            i.notify_backtrack(x);
         }
         fn cb_check_found_model<T: ExternalPropagator>(state: *mut u8, x: &[i32]) -> bool {
             let ptr: *mut T = state.cast::<T>();
@@ -591,6 +585,8 @@ impl CaDiCal {
             let i = unsafe { &mut *ptr };
             i.cb_add_external_clause_lit()
         }
+        let is_lazy = propagator.is_lazy();
+        let are_reasons_forgettable = propagator.are_reasons_forgettable();
 
         let external_propagator = unsafe {
             ffi::new_external_propagator(
