@@ -21,6 +21,7 @@ cargo doc --open
 To run valgrind run:
 
 ```
+cargo install cargo-valgrind
 cargo valgrind test --verbose
 ```
 
