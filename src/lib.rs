@@ -260,6 +260,7 @@ pub struct CaDiCal {
     solver: UniquePtr<ffi::Solver>,
     last_terminator: Option<UniquePtr<ffi::Terminator>>,
     last_learner: Option<UniquePtr<ffi::Learner>>,
+    last_external_propagator: Option<UniquePtr<ffi::ExternalPropagator>>,
 }
 
 impl Clone for CaDiCal {
@@ -284,6 +285,7 @@ impl CaDiCal {
             solver: ffi::constructor(),
             last_terminator: None,
             last_learner: None,
+            last_external_propagator: None,
         }
     }
 
@@ -523,22 +525,100 @@ impl CaDiCal {
         ffi::disconnect_fixed_listener(&mut self.solver);
     }
 
-    // /// Add call-back which allows to learn, propagate and backtrack based on
-    // /// external constraints. Only one external propagator can be connected
-    // /// and after connection every related variables must be 'observed' (use
-    // /// 'add_observed_var' function).
-    // /// Disconnection of the external propagator resets all the observed
-    // /// variables.
-    // ///
-    // ///   require (VALID)
-    // ///   ensure (VALID)
-    // ///
-    // pub fn connect_external_propagator<P: ExternalPropagator>(&mut self, propagator: P) {
-    //     todo!()
-    // }
-    // pub fn disconnect_external_propagator(&mut self) {
-    //     ffi::disconnect_external_propagator(&mut self.solver);
-    // }
+    /// Add call-back which allows to learn, propagate and backtrack based on
+    /// external constraints. Only one external propagator can be connected
+    /// and after connection every related variables must be 'observed' (use
+    /// 'add_observed_var' function).
+    /// Disconnection of the external propagator resets all the observed
+    /// variables.
+    ///
+    ///   require (VALID)
+    ///   ensure (VALID)
+    ///
+    pub fn connect_external_propagator<'a, 'b: 'a, T: ExternalPropagator>(
+        &'a mut self,
+        propagator: &'b mut T,
+    ) {
+        // prepare propagation functions
+        // bool is_lazy,
+        let is_lazy = propagator.is_lazy();
+        // bool are_reasons_forgettable,
+        let are_reasons_forgettable = propagator.are_reasons_forgettable();
+        // rust::Fn<void(uint8_t *, const rust::Slice<const int32_t>)> notify_assignment,
+        fn notify_assignment<T: ExternalPropagator>(state: *mut u8, x: &[i32]) {
+            let ptr: *mut T = state.cast::<T>();
+            let i = unsafe { &mut *ptr };
+            i.notify_assignment(x)
+        }
+
+        fn notify_new_decision_level<T: ExternalPropagator>(state: *mut u8) {
+            let ptr: *mut T = state.cast::<T>();
+            let i = unsafe { &mut *ptr };
+            i.notify_new_decision_level()
+        }
+        fn notify_backtrack<T: ExternalPropagator>(state: *mut u8, x: usize) {
+            let ptr: *mut T = state.cast::<T>();
+            let i = unsafe { &mut *ptr };
+            i.notify_backtrack(x)
+        }
+        fn cb_check_found_model<T: ExternalPropagator>(state: *mut u8, x: &[i32]) -> bool {
+            let ptr: *mut T = state.cast::<T>();
+            let i = unsafe { &mut *ptr };
+            i.cb_check_found_model(x)
+        }
+        fn cb_decide<T: ExternalPropagator>(state: *mut u8) -> i32 {
+            let ptr: *mut T = state.cast::<T>();
+            let i = unsafe { &mut *ptr };
+            i.cb_decide()
+        }
+        fn cb_propagate<T: ExternalPropagator>(state: *mut u8) -> i32 {
+            let ptr: *mut T = state.cast::<T>();
+            let i = unsafe { &mut *ptr };
+            i.cb_propagate()
+        }
+        fn cb_add_reason_clause_lit<T: ExternalPropagator>(state: *mut u8, x: i32) -> i32 {
+            let ptr: *mut T = state.cast::<T>();
+            let i = unsafe { &mut *ptr };
+            i.cb_add_reason_clause_lit(x)
+        }
+        fn cb_has_external_clause<T: ExternalPropagator>(state: *mut u8, x: *mut bool) -> bool {
+            let ptr: *mut T = state.cast::<T>();
+            let i = unsafe { &mut *ptr };
+            i.cb_has_external_clause(unsafe { &mut *x })
+        }
+        fn cb_add_external_clause_lit<T: ExternalPropagator>(state: *mut u8) -> i32 {
+            let ptr: *mut T = state.cast::<T>();
+            let i = unsafe { &mut *ptr };
+            i.cb_add_external_clause_lit()
+        }
+
+        let external_propagator = unsafe {
+            ffi::new_external_propagator(
+                std::ptr::from_mut(propagator).cast::<u8>(),
+                is_lazy,
+                are_reasons_forgettable,
+                notify_assignment::<T>,
+                notify_new_decision_level::<T>,
+                notify_backtrack::<T>,
+                cb_check_found_model::<T>,
+                cb_decide::<T>,
+                cb_propagate::<T>,
+                cb_add_reason_clause_lit::<T>,
+                cb_has_external_clause::<T>,
+                cb_add_external_clause_lit::<T>,
+            )
+        };
+
+        self.last_external_propagator = Some(external_propagator);
+        ffi::connect_external_propagator(
+            &mut self.solver,
+            self.last_external_propagator.as_mut().unwrap(),
+        );
+    }
+    pub fn disconnect_external_propagator(&mut self) {
+        ffi::disconnect_external_propagator(&mut self.solver);
+        self.last_external_propagator = None;
+    }
 
     /// Mark as 'observed' those variables that are relevant to the external
     /// propagator. External propagation, clause addition during search and

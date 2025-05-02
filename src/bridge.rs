@@ -878,5 +878,33 @@ pub mod ffi {
             s: *mut u8,
             witness: unsafe fn(*mut u8, &[i32], &[i32], u64) -> bool,
         ) -> UniquePtr<WitnessIterator>;
+
+        // std::unique_ptr<ExternalPropagator> new_external_propagator(
+        //     uint8_t *initial_state,
+        //     bool is_lazy,
+        //     bool are_reasons_forgettable,
+        //     rust::Fn<void(uint8_t *, const rust::Slice<const int32_t>)> notify_assignment,
+        //     rust::Fn<void(uint8_t *)> notify_new_decision_level,
+        //     rust::Fn<void(uint8_t *, size_t)> notify_backtrack,
+        //     rust::Fn<bool(uint8_t *, const rust::Slice<const int32_t>)> cb_check_found_model,
+        //     rust::Fn<int32_t(uint8_t *)> cb_decide,
+        //     rust::Fn<int32_t(uint8_t *)> cb_propagate,
+        //     rust::Fn<int32_t(uint8_t *, int32_t)> cb_add_reason_clause_lit,
+        //     rust::Fn<bool(uint8_t *, bool*)> cb_has_external_clause,
+        //     rust::Fn<int32_t(uint8_t *)> cb_add_external_clause_lit)
+        pub unsafe fn new_external_propagator(
+            s: *mut u8,
+            is_lazy: bool,
+            are_reasons_forgettable: bool,
+            notify_assignment: unsafe fn(*mut u8, &[i32]),
+            notify_new_decision_level: unsafe fn(*mut u8),
+            notify_backtrack: unsafe fn(*mut u8, usize),
+            cb_check_found_model: unsafe fn(*mut u8, &[i32]) -> bool,
+            cb_decide: unsafe fn(*mut u8) -> i32,
+            cb_propagate: unsafe fn(*mut u8) -> i32,
+            cb_add_reason_clause_lit: unsafe fn(*mut u8, i32) -> i32,
+            cb_has_external_clause: unsafe fn(*mut u8, *mut bool) -> bool,
+            cb_add_external_clause_lit: unsafe fn(*mut u8) -> i32,
+        ) -> UniquePtr<ExternalPropagator>;
     }
 }

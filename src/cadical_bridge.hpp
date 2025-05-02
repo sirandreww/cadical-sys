@@ -697,6 +697,96 @@ struct CustomWitnessIterator : public WitnessIterator
     }
 };
 
+struct CustomExternalPropagator : public ExternalPropagator
+{
+    uint8_t *s;
+    rust::Fn<void(uint8_t *, const rust::Slice<const int32_t>)> rust_notify_assignment;
+    rust::Fn<void(uint8_t *)> rust_notify_new_decision_level;
+    rust::Fn<void(uint8_t *, size_t)> rust_notify_backtrack;
+    rust::Fn<bool(uint8_t *, const rust::Slice<const int32_t>)> rust_cb_check_found_model;
+    rust::Fn<int32_t(uint8_t *)> rust_cb_decide;
+    rust::Fn<int32_t(uint8_t *)> rust_cb_propagate;
+    rust::Fn<int32_t(uint8_t *, int32_t)> rust_cb_add_reason_clause_lit;
+    rust::Fn<bool(uint8_t *, bool*)> rust_cb_has_external_clause;
+    rust::Fn<int32_t(uint8_t *)> rust_cb_add_external_clause_lit;
+
+    CustomExternalPropagator(
+        uint8_t *s,
+        bool is_lazy,
+        bool are_reasons_forgettable,
+        rust::Fn<void(uint8_t *, const rust::Slice<const int32_t>)> rust_notify_assignment,
+        rust::Fn<void(uint8_t *)> rust_notify_new_decision_level,
+        rust::Fn<void(uint8_t *, size_t)> rust_notify_backtrack,
+        rust::Fn<bool(uint8_t *, const rust::Slice<const int32_t>)> rust_cb_check_found_model,
+        rust::Fn<int32_t(uint8_t *)> rust_cb_decide,
+        rust::Fn<int32_t(uint8_t *)> rust_cb_propagate,
+        rust::Fn<int32_t(uint8_t *, int32_t)> rust_cb_add_reason_clause_lit,
+        rust::Fn<bool(uint8_t *, bool*)> rust_cb_has_external_clause,
+        rust::Fn<int32_t(uint8_t *)> rust_cb_add_external_clause_lit)
+        : s(s),
+          rust_notify_assignment(rust_notify_assignment),
+          rust_notify_new_decision_level(rust_notify_new_decision_level),
+          rust_notify_backtrack(rust_notify_backtrack),
+          rust_cb_check_found_model(rust_cb_check_found_model),
+          rust_cb_decide(rust_cb_decide),
+          rust_cb_propagate(rust_cb_propagate),
+          rust_cb_add_reason_clause_lit(rust_cb_add_reason_clause_lit),
+          rust_cb_has_external_clause(rust_cb_has_external_clause),
+          rust_cb_add_external_clause_lit(rust_cb_add_external_clause_lit)
+    {
+        this->s = s;
+        this->is_lazy = is_lazy;
+        this->are_reasons_forgettable = are_reasons_forgettable;
+    }
+
+    void notify_assignment(const std::vector<int> &lits) override
+    {
+        rust::Slice<const int32_t> slice{lits.data(), lits.size()};
+        rust_notify_assignment(s, slice);
+    }
+
+    void notify_new_decision_level() override
+    {
+        return rust_notify_new_decision_level(s);
+    }
+
+    void notify_backtrack(size_t new_level) override
+    {
+        return rust_notify_backtrack(s, new_level);
+    }
+
+    bool cb_check_found_model(const std::vector<int> &model) override
+    {
+        rust::Slice<const int32_t> slice{model.data(), model.size()};
+        return rust_cb_check_found_model(s, slice);
+    }
+
+    int32_t cb_decide() override
+    {
+        return rust_cb_decide(s);
+    }
+
+    int32_t cb_propagate() override
+    {
+        return rust_cb_propagate(s);
+    }
+
+    int32_t cb_add_reason_clause_lit(int32_t propagated_lit) override
+    {
+        return rust_cb_add_reason_clause_lit(s, propagated_lit);
+    }
+
+    bool cb_has_external_clause(bool &is_forgettable) override
+    {
+        return rust_cb_has_external_clause(s, &is_forgettable);
+    }
+
+    int32_t cb_add_external_clause_lit() override
+    {
+        return rust_cb_add_external_clause_lit(s);
+    }
+};
+
 // ************************************************************************************************
 // These functions make the objects that can be attached to the solver
 // ************************************************************************************************
@@ -735,4 +825,33 @@ std::unique_ptr<WitnessIterator> new_witness_iterator(
     rust::Fn<bool(uint8_t *, const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> witness)
 {
     return std::unique_ptr<WitnessIterator>(new CustomWitnessIterator(initial_state, witness));
+}
+
+std::unique_ptr<ExternalPropagator> new_external_propagator(
+    uint8_t *initial_state,
+    bool is_lazy,
+    bool are_reasons_forgettable,
+    rust::Fn<void(uint8_t *, const rust::Slice<const int32_t>)> notify_assignment,
+    rust::Fn<void(uint8_t *)> notify_new_decision_level,
+    rust::Fn<void(uint8_t *, size_t)> notify_backtrack,
+    rust::Fn<bool(uint8_t *, const rust::Slice<const int32_t>)> cb_check_found_model,
+    rust::Fn<int32_t(uint8_t *)> cb_decide,
+    rust::Fn<int32_t(uint8_t *)> cb_propagate,
+    rust::Fn<int32_t(uint8_t *, int32_t)> cb_add_reason_clause_lit,
+    rust::Fn<bool(uint8_t *, bool*)> cb_has_external_clause,
+    rust::Fn<int32_t(uint8_t *)> cb_add_external_clause_lit)
+{
+    return std::unique_ptr<ExternalPropagator>(new CustomExternalPropagator(
+        initial_state,
+        is_lazy,
+        are_reasons_forgettable,
+        notify_assignment,
+        notify_new_decision_level,
+        notify_backtrack,
+        cb_check_found_model,
+        cb_decide,
+        cb_propagate,
+        cb_add_reason_clause_lit,
+        cb_has_external_clause,
+        cb_add_external_clause_lit));
 }
