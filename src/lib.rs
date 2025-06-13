@@ -261,6 +261,7 @@ pub struct CaDiCal {
     last_terminator: Option<UniquePtr<ffi::Terminator>>,
     last_learner: Option<UniquePtr<ffi::Learner>>,
     last_external_propagator: Option<UniquePtr<ffi::ExternalPropagator>>,
+    last_fixed_listener: Option<UniquePtr<ffi::FixedAssignmentListener>>,
 }
 
 impl Clone for CaDiCal {
@@ -286,6 +287,7 @@ impl CaDiCal {
             last_terminator: None,
             last_learner: None,
             last_external_propagator: None,
+            last_fixed_listener: None,
         }
     }
 
@@ -517,9 +519,30 @@ impl CaDiCal {
     // ///   require (VALID)
     // ///   ensure (VALID)
     // ///
-    // pub fn connect_fixed_listener<F: FixedAssignmentListener>(&mut self, _fixed_listener: F) {
-    //     todo!()
-    // }
+    pub fn connect_fixed_listener<'a, 'b: 'a, F: FixedAssignmentListener>(&'a mut self, fixed_listener: &'b mut F) {
+        fn notify_fixed_assignment<F: FixedAssignmentListener>(state: *mut u8, lit: i32) {
+            let ptr: *mut F = state.cast::<F>(); 
+            let i = unsafe { &mut *ptr };   
+            i.notify_fixed_assignment(lit);        
+        }
+               
+        // Create a boxed listener to ensure it lives long enough
+        let listener = unsafe {
+            ffi::new_fixed_assignment_listener(
+                std::ptr::from_mut(fixed_listener).cast::<u8>(),
+                notify_fixed_assignment::<F>,
+            )
+        };
+
+        // Store the listener in self to prevent it from being dropped
+        self.last_fixed_listener = Some(listener);
+        
+        // Use the stored listener
+        if let Some(ref mut listener) = self.last_fixed_listener {
+            ffi::connect_fixed_listener(&mut self.solver, listener);
+        }
+    }
+
     #[inline]
     pub fn disconnect_fixed_listener(&mut self) {
         ffi::disconnect_fixed_listener(&mut self.solver);
