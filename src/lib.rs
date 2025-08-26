@@ -514,11 +514,12 @@ impl CaDiCal {
         self.last_learner = None;
     }
 
-    // /// Add call-back which allows to observe when a variable is fixed.
-    // ///
-    // ///   require (VALID)
-    // ///   ensure (VALID)
-    // ///
+    /// Add call-back which allows to observe when a variable is fixed.
+    ///
+    ///   require (VALID)
+    ///   ensure (VALID)
+    ///
+    #[allow(clippy::missing_panics_doc)]
     pub fn connect_fixed_listener<'a, 'b: 'a, F: FixedAssignmentListener>(
         &'a mut self,
         fixed_listener: &'b mut F,

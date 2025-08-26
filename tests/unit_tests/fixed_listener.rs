@@ -1,4 +1,4 @@
-use cadical_sys::{CaDiCal, ExternalPropagator, FixedAssignmentListener, Status};
+use cadical_sys::{CaDiCal, FixedAssignmentListener, Status};
 
 struct MyFixedListener {
     fixed_assignments: Vec<i32>,
@@ -13,10 +13,6 @@ impl MyFixedListener {
 
     fn get_fixed_assignments(&self) -> &[i32] {
         &self.fixed_assignments
-    }
-
-    fn clear(&mut self) {
-        self.fixed_assignments.clear();
     }
 }
 
