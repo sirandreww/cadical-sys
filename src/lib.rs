@@ -261,6 +261,7 @@ pub struct CaDiCal {
     last_terminator: Option<UniquePtr<ffi::Terminator>>,
     last_learner: Option<UniquePtr<ffi::Learner>>,
     last_external_propagator: Option<UniquePtr<ffi::ExternalPropagator>>,
+    last_fixed_listener: Option<UniquePtr<ffi::FixedAssignmentListener>>,
 }
 
 impl Clone for CaDiCal {
@@ -286,6 +287,7 @@ impl CaDiCal {
             last_terminator: None,
             last_learner: None,
             last_external_propagator: None,
+            last_fixed_listener: None,
         }
     }
 
@@ -512,17 +514,38 @@ impl CaDiCal {
         self.last_learner = None;
     }
 
-    // /// Add call-back which allows to observe when a variable is fixed.
-    // ///
-    // ///   require (VALID)
-    // ///   ensure (VALID)
-    // ///
-    // pub fn connect_fixed_listener<F: FixedAssignmentListener>(&mut self, _fixed_listener: F) {
-    //     todo!()
-    // }
+    /// Add call-back which allows to observe when a variable is fixed.
+    ///
+    ///   require (VALID)
+    ///   ensure (VALID)
+    ///
+    #[allow(clippy::missing_panics_doc)]
+    pub fn connect_fixed_listener<'a, 'b: 'a, F: FixedAssignmentListener>(
+        &'a mut self,
+        fixed_listener: &'b mut F,
+    ) {
+        fn notify_fixed_assignment<F: FixedAssignmentListener>(state: *mut u8, lit: i32) {
+            let ptr: *mut F = state.cast::<F>();
+            let i = unsafe { &mut *ptr };
+            i.notify_fixed_assignment(lit);
+        }
+
+        let s = std::ptr::from_mut(fixed_listener).cast::<u8>();
+
+        let listener =
+            unsafe { ffi::new_fixed_assignment_listener(s, notify_fixed_assignment::<F>) };
+
+        // Store the listener in self to prevent it from being dropped
+        self.last_fixed_listener = Some(listener);
+
+        // Use the stored listener
+        ffi::connect_fixed_listener(&mut self.solver, self.last_fixed_listener.as_mut().unwrap());
+    }
+
     #[inline]
     pub fn disconnect_fixed_listener(&mut self) {
         ffi::disconnect_fixed_listener(&mut self.solver);
+        self.last_fixed_listener = None;
     }
 
     /// Add call-back which allows to learn, propagate and backtrack based on
