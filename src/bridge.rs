@@ -894,5 +894,23 @@ pub mod ffi {
             cb_has_external_clause: unsafe fn(*mut u8, *mut bool) -> bool,
             cb_add_external_clause_lit: unsafe fn(*mut u8) -> i32,
         ) -> UniquePtr<ExternalPropagator>;
+
+        #[allow(clippy::missing_safety_doc, clippy::too_many_arguments)]
+        pub unsafe fn new_tracer(
+            initial_state: *mut u8,
+            add_original_clause: unsafe fn(*mut u8, u64, bool, &[i32], bool),
+            add_derived_clause: unsafe fn(*mut u8, u64, bool, &[i32], &[u64]),
+            delete_clause: unsafe fn(*mut u8, u64, bool, &[i32]),
+            weaken_minus: unsafe fn(*mut u8, u64, &[i32]),
+            strengthen: unsafe fn(*mut u8, u64),
+            finalize_clause: unsafe fn(*mut u8, u64, &[i32]),
+            add_assumption: unsafe fn(*mut u8, i32),
+            add_constraint: unsafe fn(*mut u8, &[i32]),
+            reset_assumptions: unsafe fn(*mut u8),
+            add_assumption_clause: unsafe fn(*mut u8, u64, &[i32], &[u64]),
+            conclude_sat: unsafe fn(*mut u8, i32, &[i32]),
+            conclude_unsat: unsafe fn(*mut u8, i32, &[u64]),
+            conclude_unknown: unsafe fn(*mut u8, &[i32]),
+        ) -> UniquePtr<Tracer>;
     }
 }
