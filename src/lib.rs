@@ -1439,12 +1439,12 @@ use std::vec::Vec;
 /// CDCL loop (without restart).
 pub trait ExternalPropagator {
     /// lazy propagator only checks complete assignments
-    fn is_lazy(&self) -> bool {
+    fn is_lazy(&mut self) -> bool {
         false
     }
 
     /// Reason external clauses can be deleted
-    fn are_reasons_forgettable(&self) -> bool {
+    fn are_reasons_forgettable(&mut self) -> bool {
         false
     }
 
@@ -1461,11 +1461,11 @@ pub trait ExternalPropagator {
     /// Check by the external propagator the found complete solution (after
     /// solution reconstruction). If it returns false, the propagator must
     /// provide an external clause during the next callback.
-    fn cb_check_found_model(&self, model: &[i32]) -> bool;
+    fn cb_check_found_model(&mut self, model: &[i32]) -> bool;
 
     /// Ask the external propagator for the next decision literal. If it
     /// returns 0, the solver makes its own choice.
-    fn cb_decide(&self) -> i32 {
+    fn cb_decide(&mut self) -> i32 {
         0
     }
 
@@ -1473,7 +1473,7 @@ pub trait ExternalPropagator {
     /// under the current assignment. It returns either a literal to be
     /// propagated or 0, indicating that there is no external propagation under
     /// the current assignment.
-    fn cb_propagate(&self) -> i32 {
+    fn cb_propagate(&mut self) -> i32 {
         0
     }
 
@@ -1484,7 +1484,7 @@ pub trait ExternalPropagator {
     ///
     /// The clause will be learned as an Irredundant Non-Forgettable Clause (see
     /// below at '`cb_has_external_clause`' more details about it).
-    fn cb_add_reason_clause_lit(&self, _propagated_lit: i32) -> i32 {
+    fn cb_add_reason_clause_lit(&mut self, _propagated_lit: i32) -> i32 {
         0
     }
 
@@ -1526,10 +1526,10 @@ pub trait ExternalPropagator {
     /// (therefore frozen) variables, hence no tainting or restore steps
     /// are performed upon their addition. This will be changed in later
     /// versions probably.
-    fn cb_has_external_clause(&self, is_forgettable: &mut bool) -> bool;
+    fn cb_has_external_clause(&mut self, is_forgettable: &mut bool) -> bool;
 
     /// The actual function called to add the external clause.
-    fn cb_add_external_clause_lit(&self) -> i32;
+    fn cb_add_external_clause_lit(&mut self) -> i32;
 }
 
 /// Allows to traverse all remaining irredundant clauses.  Satisfied and
