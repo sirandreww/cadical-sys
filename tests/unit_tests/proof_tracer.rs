@@ -411,10 +411,14 @@ fn validate_original_clauses_consistency(tracer: &TestProofTracer) {
 
         // Check that clause contains no complementary literals (x and -x)
         for &lit in clause {
-            assert!(!clause.contains(&(-lit)), 
-                    "Original clause {} contains complementary literals {} and {}: {:?}",
-                    id, lit, -lit, clause
-                );
+            assert!(
+                !clause.contains(&(-lit)),
+                "Original clause {} contains complementary literals {} and {}: {:?}",
+                id,
+                lit,
+                -lit,
+                clause
+            );
         }
     }
 }
@@ -439,9 +443,10 @@ fn validate_derived_clauses_antecedents(tracer: &TestProofTracer) {
         if clause.is_empty() {
             // Empty derived clauses might be valid in some cases (e.g., empty clause for UNSAT)
             // We'll allow this but log it for debugging
-            assert!(!found_empty_clause, 
-                    "Derived clause {id} is empty (and it is the second empty clause)"
-                );
+            assert!(
+                !found_empty_clause,
+                "Derived clause {id} is empty (and it is the second empty clause)"
+            );
             found_empty_clause = true;
         }
 
@@ -457,17 +462,22 @@ fn validate_derived_clauses_antecedents(tracer: &TestProofTracer) {
 
         // Check that clause contains no complementary literals
         for &lit in clause {
-            assert!(!clause.contains(&(-lit)), 
-                    "Derived clause {} contains complementary literals {} and {}: {:?}",
-                    id, lit, -lit, clause
-                );
+            assert!(
+                !clause.contains(&(-lit)),
+                "Derived clause {} contains complementary literals {} and {}: {:?}",
+                id,
+                lit,
+                -lit,
+                clause
+            );
         }
 
         // Check that antecedents exist (either original or previously derived)
         for &antecedent_id in antecedents {
-            assert!(!(!original_ids.contains(&antecedent_id) && !derived_ids.contains(&antecedent_id)), 
-                    "Derived clause {id} references non-existent antecedent {antecedent_id}"
-                );
+            assert!(
+                !(!original_ids.contains(&antecedent_id) && !derived_ids.contains(&antecedent_id)),
+                "Derived clause {id} references non-existent antecedent {antecedent_id}"
+            );
         }
 
         // Check that derived clause doesn't reference itself
@@ -587,10 +597,14 @@ fn validate_constraints_validity(tracer: &TestProofTracer) {
 
         // Check for complementary literals
         for &lit in clause {
-            assert!(!clause.contains(&(-lit)), 
-                    "Constraint {} contains complementary literals {} and {}: {:?}",
-                    i, lit, -lit, clause
-                );
+            assert!(
+                !clause.contains(&(-lit)),
+                "Constraint {} contains complementary literals {} and {}: {:?}",
+                i,
+                lit,
+                -lit,
+                clause
+            );
         }
     }
 }
@@ -1060,9 +1074,10 @@ fn validate_derived_clause_resolution(tracer: &TestProofTracer) {
         // Check that the clause is not trivially satisfiable
         // (contains both a literal and its negation)
         for &lit in clause {
-            assert!(!clause.contains(&(-lit)), 
-                    "Derived clause {id} is trivially satisfiable: {clause:?}"
-                );
+            assert!(
+                !clause.contains(&(-lit)),
+                "Derived clause {id} is trivially satisfiable: {clause:?}"
+            );
         }
     }
 }
