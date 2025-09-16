@@ -1,6 +1,6 @@
 use cadical_sys::{CaDiCal, ProofTracer, Status};
 
-/// Test implementation of ProofTracer that tracks all method calls
+/// Test implementation of `ProofTracer` that tracks all method calls
 struct TestProofTracer {
     original_clauses: Vec<(u64, bool, Vec<i32>, bool)>,
     derived_clauses: Vec<(u64, bool, Vec<i32>, Vec<u64>)>,
@@ -396,29 +396,25 @@ fn validate_original_clauses_consistency(tracer: &TestProofTracer) {
     for (id, _redundant, clause, _restored) in tracer.get_original_clauses() {
         // Check that clause is not empty (unless it's a special case)
         if clause.is_empty() {
-            println!("Warning: Original clause {} is empty", id);
+            println!("Warning: Original clause {id} is empty");
         }
 
         // Check that clause contains no duplicate literals
         let mut sorted_clause = clause.clone();
-        sorted_clause.sort();
+        sorted_clause.sort_unstable();
         sorted_clause.dedup();
         assert_eq!(
             clause.len(),
             sorted_clause.len(),
-            "Original clause {} contains duplicate literals: {:?}",
-            id,
-            clause
+            "Original clause {id} contains duplicate literals: {clause:?}"
         );
 
         // Check that clause contains no complementary literals (x and -x)
         for &lit in clause {
-            if clause.contains(&(-lit)) {
-                panic!(
+            assert!(!clause.contains(&(-lit)), 
                     "Original clause {} contains complementary literals {} and {}: {:?}",
                     id, lit, -lit, clause
                 );
-            }
         }
     }
 }
@@ -443,52 +439,41 @@ fn validate_derived_clauses_antecedents(tracer: &TestProofTracer) {
         if clause.is_empty() {
             // Empty derived clauses might be valid in some cases (e.g., empty clause for UNSAT)
             // We'll allow this but log it for debugging
-            if found_empty_clause {
-                panic!(
-                    "Derived clause {} is empty (and it is the second empty clause)",
-                    id
+            assert!(!found_empty_clause, 
+                    "Derived clause {id} is empty (and it is the second empty clause)"
                 );
-            }
             found_empty_clause = true;
         }
 
         // Check that clause contains no duplicate literals
         let mut sorted_clause = clause.clone();
-        sorted_clause.sort();
+        sorted_clause.sort_unstable();
         sorted_clause.dedup();
         assert_eq!(
             clause.len(),
             sorted_clause.len(),
-            "Derived clause {} contains duplicate literals: {:?}",
-            id,
-            clause
+            "Derived clause {id} contains duplicate literals: {clause:?}"
         );
 
         // Check that clause contains no complementary literals
         for &lit in clause {
-            if clause.contains(&(-lit)) {
-                panic!(
+            assert!(!clause.contains(&(-lit)), 
                     "Derived clause {} contains complementary literals {} and {}: {:?}",
                     id, lit, -lit, clause
                 );
-            }
         }
 
         // Check that antecedents exist (either original or previously derived)
         for &antecedent_id in antecedents {
-            if !original_ids.contains(&antecedent_id) && !derived_ids.contains(&antecedent_id) {
-                panic!(
-                    "Derived clause {} references non-existent antecedent {}",
-                    id, antecedent_id
+            assert!(!(!original_ids.contains(&antecedent_id) && !derived_ids.contains(&antecedent_id)), 
+                    "Derived clause {id} references non-existent antecedent {antecedent_id}"
                 );
-            }
         }
 
         // Check that derived clause doesn't reference itself
         assert!(
             !antecedents.contains(id),
-            "Derived clause {} references itself as antecedent",
-            id
+            "Derived clause {id} references itself as antecedent"
         );
     }
 }
@@ -505,13 +490,12 @@ fn validate_deleted_clauses_existence(tracer: &TestProofTracer) {
     for (id, _redundant, clause) in tracer.get_deleted_clauses() {
         assert!(
             all_added_ids.contains(id),
-            "Deleted clause {} was never added to the solver",
-            id
+            "Deleted clause {id} was never added to the solver"
         );
 
         // Check that clause is not empty (unless it's a special case)
         if clause.is_empty() {
-            println!("Warning: Deleted clause {} is empty", id);
+            println!("Warning: Deleted clause {id} is empty");
         }
     }
 }
@@ -528,13 +512,12 @@ fn validate_weakened_clauses_existence(tracer: &TestProofTracer) {
     for (id, clause) in tracer.get_weakened_clauses() {
         assert!(
             all_added_ids.contains(id),
-            "Weakened clause {} was never added to the solver",
-            id
+            "Weakened clause {id} was never added to the solver"
         );
 
         // Check that clause is not empty (unless it's a special case)
         if clause.is_empty() {
-            println!("Warning: Weakened clause {} is empty", id);
+            println!("Warning: Weakened clause {id} is empty");
         }
     }
 }
@@ -551,8 +534,7 @@ fn validate_strengthened_clauses_existence(tracer: &TestProofTracer) {
     for &id in tracer.get_strengthened_clauses() {
         assert!(
             all_added_ids.contains(&id),
-            "Strengthened clause {} was never added to the solver",
-            id
+            "Strengthened clause {id} was never added to the solver"
         );
     }
 }
@@ -569,13 +551,12 @@ fn validate_finalized_clauses_existence(tracer: &TestProofTracer) {
     for (id, clause) in tracer.get_finalized_clauses() {
         assert!(
             all_added_ids.contains(id),
-            "Finalized clause {} was never added to the solver",
-            id
+            "Finalized clause {id} was never added to the solver"
         );
 
         // Check that clause is not empty (unless it's a special case)
         if clause.is_empty() {
-            println!("Warning: Finalized clause {} is empty", id);
+            println!("Warning: Finalized clause {id} is empty");
         }
     }
 }
@@ -591,29 +572,25 @@ fn validate_assumptions_validity(tracer: &TestProofTracer) {
 fn validate_constraints_validity(tracer: &TestProofTracer) {
     for (i, clause) in tracer.get_constraints().iter().enumerate() {
         if clause.is_empty() {
-            println!("Warning: Constraint {} is empty", i);
+            println!("Warning: Constraint {i} is empty");
         }
 
         // Check for duplicate literals
         let mut sorted_clause = clause.clone();
-        sorted_clause.sort();
+        sorted_clause.sort_unstable();
         sorted_clause.dedup();
         assert_eq!(
             clause.len(),
             sorted_clause.len(),
-            "Constraint {} contains duplicate literals: {:?}",
-            i,
-            clause
+            "Constraint {i} contains duplicate literals: {clause:?}"
         );
 
         // Check for complementary literals
         for &lit in clause {
-            if clause.contains(&(-lit)) {
-                panic!(
+            assert!(!clause.contains(&(-lit)), 
                     "Constraint {} contains complementary literals {} and {}: {:?}",
                     i, lit, -lit, clause
                 );
-            }
         }
     }
 }
@@ -630,16 +607,14 @@ fn validate_assumption_clauses_antecedents(tracer: &TestProofTracer) {
     for (id, clause, antecedents) in tracer.get_assumption_clauses() {
         // Check that clause is not empty (unless it's a special case)
         if clause.is_empty() {
-            println!("Warning: Assumption clause {} is empty", id);
+            println!("Warning: Assumption clause {id} is empty");
         }
 
         // Check that antecedents exist
         for &antecedent_id in antecedents {
             assert!(
                 all_added_ids.contains(&antecedent_id),
-                "Assumption clause {} references non-existent antecedent {}",
-                id,
-                antecedent_id
+                "Assumption clause {id} references non-existent antecedent {antecedent_id}"
             );
         }
     }
@@ -661,8 +636,7 @@ fn validate_sat_conclusions(tracer: &TestProofTracer) {
         assert_eq!(
             model.len(),
             sorted_model.len(),
-            "SAT model contains duplicate variables: {:?}",
-            model
+            "SAT model contains duplicate variables: {model:?}"
         );
 
         // Check that model contains no zero literals
@@ -692,8 +666,7 @@ fn validate_unsat_conclusions(tracer: &TestProofTracer) {
         for &clause_id in clause_ids {
             assert!(
                 all_added_ids.contains(&clause_id),
-                "UNSAT conclusion references non-existent clause {}",
-                clause_id
+                "UNSAT conclusion references non-existent clause {clause_id}"
             );
         }
     }
@@ -705,8 +678,7 @@ fn validate_unknown_conclusions(tracer: &TestProofTracer) {
         // Trail should not be empty
         assert!(
             !trail.is_empty(),
-            "UNKNOWN conclusion {} should have non-empty trail",
-            i
+            "UNKNOWN conclusion {i} should have non-empty trail"
         );
 
         // Check that trail contains no zero literals
@@ -1008,16 +980,14 @@ fn validate_proof_logical_consistency(tracer: &TestProofTracer) {
     for (id, _, _, _) in tracer.get_original_clauses() {
         assert!(
             all_clause_ids.insert(*id),
-            "Duplicate clause ID found: {}",
-            id
+            "Duplicate clause ID found: {id}"
         );
     }
 
     for (id, _, _, _) in tracer.get_derived_clauses() {
         assert!(
             all_clause_ids.insert(*id),
-            "Duplicate clause ID found: {}",
-            id
+            "Duplicate clause ID found: {id}"
         );
     }
 
@@ -1031,16 +1001,14 @@ fn validate_proof_logical_consistency(tracer: &TestProofTracer) {
     for (id, _) in tracer.get_weakened_clauses() {
         assert!(
             !deleted_ids.contains(id),
-            "Weakened clause {} was previously deleted",
-            id
+            "Weakened clause {id} was previously deleted"
         );
     }
 
     for (id, _) in tracer.get_finalized_clauses() {
         assert!(
             !deleted_ids.contains(id),
-            "Finalized clause {} was previously deleted",
-            id
+            "Finalized clause {id} was previously deleted"
         );
     }
 }
@@ -1085,20 +1053,16 @@ fn validate_derived_clause_resolution(tracer: &TestProofTracer) {
         if clause.len() > 1 {
             assert!(
                 !antecedents.is_empty(),
-                "Non-unit derived clause {} should have antecedents",
-                id
+                "Non-unit derived clause {id} should have antecedents"
             );
         }
 
         // Check that the clause is not trivially satisfiable
         // (contains both a literal and its negation)
         for &lit in clause {
-            if clause.contains(&(-lit)) {
-                panic!(
-                    "Derived clause {} is trivially satisfiable: {:?}",
-                    id, clause
+            assert!(!clause.contains(&(-lit)), 
+                    "Derived clause {id} is trivially satisfiable: {clause:?}"
                 );
-            }
         }
     }
 }
@@ -1125,8 +1089,7 @@ fn validate_proof_ordering(tracer: &TestProofTracer) {
                     .any(|(derived_id, _, _, _)| *derived_id == antecedent_id);
                 assert!(
                     is_derived,
-                    "Derived clause {} references non-existent antecedent {}",
-                    id, antecedent_id
+                    "Derived clause {id} references non-existent antecedent {antecedent_id}"
                 );
             }
         }
@@ -1141,8 +1104,7 @@ fn validate_proof_memory_efficiency(tracer: &TestProofTracer) {
     // This is a sanity check - adjust the threshold as needed
     assert!(
         total_clauses < 10000,
-        "Proof trace has too many clauses: {}",
-        total_clauses
+        "Proof trace has too many clauses: {total_clauses}"
     );
 
     // Check that clauses are not excessively long
