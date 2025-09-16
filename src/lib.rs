@@ -1172,14 +1172,30 @@ impl CaDiCal {
     // ///   require (CONFIGURING)
     // ///   ensure (CONFIGURING)
     // ///
-    pub fn connect_proof_tracer1<'a, 'b: 'a, T: ProofTracer>(&'a mut self, tracer: &'b mut T, antecedents: bool) {
-        fn add_original_clause<T: ProofTracer>(state: *mut u8, id: u64, redundant: bool, clause: &[i32], restored: bool) {
+    pub fn connect_proof_tracer1<'a, 'b: 'a, T: ProofTracer>(
+        &'a mut self,
+        tracer: &'b mut T,
+        antecedents: bool,
+    ) {
+        fn add_original_clause<T: ProofTracer>(
+            state: *mut u8,
+            id: u64,
+            redundant: bool,
+            clause: &[i32],
+            restored: bool,
+        ) {
             let ptr: *mut T = state.cast::<T>();
             let t = unsafe { &mut *ptr };
             t.add_original_clause(id, redundant, clause, restored);
         }
 
-        fn add_derived_clause<T: ProofTracer>(state: *mut u8, id: u64, redundant: bool, clause: &[i32], antecedents: &[u64]) {
+        fn add_derived_clause<T: ProofTracer>(
+            state: *mut u8,
+            id: u64,
+            redundant: bool,
+            clause: &[i32],
+            antecedents: &[u64],
+        ) {
             let ptr: *mut T = state.cast::<T>();
             let t = unsafe { &mut *ptr };
             t.add_derived_clause(id, redundant, clause, antecedents);
@@ -1227,7 +1243,12 @@ impl CaDiCal {
             t.reset_assumptions();
         }
 
-        fn add_assumption_clause<T: ProofTracer>(state: *mut u8, id: u64, clause: &[i32], antecedents: &[u64]) {
+        fn add_assumption_clause<T: ProofTracer>(
+            state: *mut u8,
+            id: u64,
+            clause: &[i32],
+            antecedents: &[u64],
+        ) {
             let ptr: *mut T = state.cast::<T>();
             let t = unsafe { &mut *ptr };
             t.add_assumption_clause(id, clause, antecedents);
@@ -1239,7 +1260,11 @@ impl CaDiCal {
             t.conclude_sat(conclusion_type, model);
         }
 
-        fn conclude_unsat<T: ProofTracer>(state: *mut u8, conclusion_type: i32, clause_ids: &[u64]) {
+        fn conclude_unsat<T: ProofTracer>(
+            state: *mut u8,
+            conclusion_type: i32,
+            clause_ids: &[u64],
+        ) {
             let ptr: *mut T = state.cast::<T>();
             let t = unsafe { &mut *ptr };
             t.conclude_unsat(conclusion_type, clause_ids);
@@ -1272,9 +1297,13 @@ impl CaDiCal {
 
         // Store the tracer to prevent it from being dropped
         self.last_tracer = Some(tracer_ptr);
-        
+
         // Connect the tracer to the solver
-        ffi::connect_proof_tracer1(&mut self.solver, self.last_tracer.as_mut().unwrap(), antecedents);
+        ffi::connect_proof_tracer1(
+            &mut self.solver,
+            self.last_tracer.as_mut().unwrap(),
+            antecedents,
+        );
     }
 
     // pub fn connect_proof_tracer2(
