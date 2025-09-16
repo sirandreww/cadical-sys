@@ -3,11 +3,11 @@ use cadical_sys::{CaDiCal, ExternalPropagator, Status};
 struct MyExternalPropagator {}
 
 impl ExternalPropagator for MyExternalPropagator {
-    fn is_lazy(&self) -> bool {
+    fn is_lazy(&mut self) -> bool {
         false
     }
 
-    fn are_reasons_forgettable(&self) -> bool {
+    fn are_reasons_forgettable(&mut self) -> bool {
         false
     }
 
@@ -16,24 +16,24 @@ impl ExternalPropagator for MyExternalPropagator {
     fn notify_backtrack(&mut self, _: usize) {
         todo!()
     }
-    fn cb_check_found_model(&self, _: &[i32]) -> bool {
+    fn cb_check_found_model(&mut self, _: &[i32]) -> bool {
         true // sat
     }
-    fn cb_has_external_clause(&self, _: &mut bool) -> bool {
+    fn cb_has_external_clause(&mut self, _: &mut bool) -> bool {
         false
     }
-    fn cb_add_external_clause_lit(&self) -> i32 {
+    fn cb_add_external_clause_lit(&mut self) -> i32 {
         todo!()
     }
-    fn cb_decide(&self) -> i32 {
+    fn cb_decide(&mut self) -> i32 {
         0
     }
 
-    fn cb_propagate(&self) -> i32 {
+    fn cb_propagate(&mut self) -> i32 {
         0
     }
 
-    fn cb_add_reason_clause_lit(&self, _propagated_lit: i32) -> i32 {
+    fn cb_add_reason_clause_lit(&mut self, _propagated_lit: i32) -> i32 {
         todo!()
     }
 }

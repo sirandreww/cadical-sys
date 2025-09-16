@@ -262,6 +262,7 @@ pub struct CaDiCal {
     last_learner: Option<UniquePtr<ffi::Learner>>,
     last_external_propagator: Option<UniquePtr<ffi::ExternalPropagator>>,
     last_fixed_listener: Option<UniquePtr<ffi::FixedAssignmentListener>>,
+    last_tracer: Option<UniquePtr<ffi::Tracer>>,
 }
 
 impl Clone for CaDiCal {
@@ -288,6 +289,7 @@ impl CaDiCal {
             last_learner: None,
             last_external_propagator: None,
             last_fixed_listener: None,
+            last_tracer: None,
         }
     }
 
@@ -1170,9 +1172,141 @@ impl CaDiCal {
     // ///   require (CONFIGURING)
     // ///   ensure (CONFIGURING)
     // ///
-    // pub fn connect_proof_tracer1(&mut self, tracer: &mut UniquePtr<Tracer>, antecedents: bool) {
-    //     todo!()
-    // }
+    #[allow(clippy::missing_panics_doc)]
+    #[allow(clippy::too_many_lines)]
+    pub fn connect_proof_tracer1<'a, 'b: 'a, T: ProofTracer>(
+        &'a mut self,
+        tracer: &'b mut T,
+        antecedents: bool,
+    ) {
+        fn add_original_clause<T: ProofTracer>(
+            state: *mut u8,
+            id: u64,
+            redundant: bool,
+            clause: &[i32],
+            restored: bool,
+        ) {
+            let ptr: *mut T = state.cast::<T>();
+            let t = unsafe { &mut *ptr };
+            t.add_original_clause(id, redundant, clause, restored);
+        }
+
+        fn add_derived_clause<T: ProofTracer>(
+            state: *mut u8,
+            id: u64,
+            redundant: bool,
+            clause: &[i32],
+            antecedents: &[u64],
+        ) {
+            let ptr: *mut T = state.cast::<T>();
+            let t = unsafe { &mut *ptr };
+            t.add_derived_clause(id, redundant, clause, antecedents);
+        }
+
+        fn delete_clause<T: ProofTracer>(state: *mut u8, id: u64, redundant: bool, clause: &[i32]) {
+            let ptr: *mut T = state.cast::<T>();
+            let t = unsafe { &mut *ptr };
+            t.delete_clause(id, redundant, clause);
+        }
+
+        fn weaken_minus<T: ProofTracer>(state: *mut u8, id: u64, clause: &[i32]) {
+            let ptr: *mut T = state.cast::<T>();
+            let t = unsafe { &mut *ptr };
+            t.weaken_minus(id, clause);
+        }
+
+        fn strengthen<T: ProofTracer>(state: *mut u8, id: u64) {
+            let ptr: *mut T = state.cast::<T>();
+            let t = unsafe { &mut *ptr };
+            t.strengthen(id);
+        }
+
+        fn finalize_clause<T: ProofTracer>(state: *mut u8, id: u64, clause: &[i32]) {
+            let ptr: *mut T = state.cast::<T>();
+            let t = unsafe { &mut *ptr };
+            t.finalize_clause(id, clause);
+        }
+
+        fn add_assumption<T: ProofTracer>(state: *mut u8, lit: i32) {
+            let ptr: *mut T = state.cast::<T>();
+            let t = unsafe { &mut *ptr };
+            t.add_assumption(lit);
+        }
+
+        fn add_constraint<T: ProofTracer>(state: *mut u8, clause: &[i32]) {
+            let ptr: *mut T = state.cast::<T>();
+            let t = unsafe { &mut *ptr };
+            t.add_constraint(clause);
+        }
+
+        fn reset_assumptions<T: ProofTracer>(state: *mut u8) {
+            let ptr: *mut T = state.cast::<T>();
+            let t = unsafe { &mut *ptr };
+            t.reset_assumptions();
+        }
+
+        fn add_assumption_clause<T: ProofTracer>(
+            state: *mut u8,
+            id: u64,
+            clause: &[i32],
+            antecedents: &[u64],
+        ) {
+            let ptr: *mut T = state.cast::<T>();
+            let t = unsafe { &mut *ptr };
+            t.add_assumption_clause(id, clause, antecedents);
+        }
+
+        fn conclude_sat<T: ProofTracer>(state: *mut u8, conclusion_type: i32, model: &[i32]) {
+            let ptr: *mut T = state.cast::<T>();
+            let t = unsafe { &mut *ptr };
+            t.conclude_sat(conclusion_type, model);
+        }
+
+        fn conclude_unsat<T: ProofTracer>(
+            state: *mut u8,
+            conclusion_type: i32,
+            clause_ids: &[u64],
+        ) {
+            let ptr: *mut T = state.cast::<T>();
+            let t = unsafe { &mut *ptr };
+            t.conclude_unsat(conclusion_type, clause_ids);
+        }
+
+        fn conclude_unknown<T: ProofTracer>(state: *mut u8, trail: &[i32]) {
+            let ptr: *mut T = state.cast::<T>();
+            let t = unsafe { &mut *ptr };
+            t.conclude_unknown(trail);
+        }
+
+        let tracer_ptr = unsafe {
+            ffi::new_tracer(
+                std::ptr::from_mut(tracer).cast::<u8>(),
+                add_original_clause::<T>,
+                add_derived_clause::<T>,
+                delete_clause::<T>,
+                weaken_minus::<T>,
+                strengthen::<T>,
+                finalize_clause::<T>,
+                add_assumption::<T>,
+                add_constraint::<T>,
+                reset_assumptions::<T>,
+                add_assumption_clause::<T>,
+                conclude_sat::<T>,
+                conclude_unsat::<T>,
+                conclude_unknown::<T>,
+            )
+        };
+
+        // Store the tracer to prevent it from being dropped
+        self.last_tracer = Some(tracer_ptr);
+
+        // Connect the tracer to the solver
+        ffi::connect_proof_tracer1(
+            &mut self.solver,
+            self.last_tracer.as_mut().unwrap(),
+            antecedents,
+        );
+    }
 
     // pub fn connect_proof_tracer2(
     //     &mut self,
@@ -1214,9 +1348,12 @@ impl CaDiCal {
     // ///   require (VALID)
     // ///   ensure (VALID)
     // ///
-    // pub fn disconnect_proof_tracer1(&mut self, tracer: &mut UniquePtr<Tracer>) -> bool {
-    //     todo!()
-    // }
+    pub fn disconnect_proof_tracer1(&mut self) {
+        if let Some(tracer) = &mut self.last_tracer {
+            ffi::disconnect_proof_tracer1(&mut self.solver, tracer);
+        }
+        self.last_tracer = None;
+    }
     // pub fn disconnect_proof_tracer2(&mut self, tracer: &mut UniquePtr<StatTracer>) -> bool {
     //     todo!()
     // }
@@ -1439,12 +1576,12 @@ use std::vec::Vec;
 /// CDCL loop (without restart).
 pub trait ExternalPropagator {
     /// lazy propagator only checks complete assignments
-    fn is_lazy(&self) -> bool {
+    fn is_lazy(&mut self) -> bool {
         false
     }
 
     /// Reason external clauses can be deleted
-    fn are_reasons_forgettable(&self) -> bool {
+    fn are_reasons_forgettable(&mut self) -> bool {
         false
     }
 
@@ -1461,11 +1598,11 @@ pub trait ExternalPropagator {
     /// Check by the external propagator the found complete solution (after
     /// solution reconstruction). If it returns false, the propagator must
     /// provide an external clause during the next callback.
-    fn cb_check_found_model(&self, model: &[i32]) -> bool;
+    fn cb_check_found_model(&mut self, model: &[i32]) -> bool;
 
     /// Ask the external propagator for the next decision literal. If it
     /// returns 0, the solver makes its own choice.
-    fn cb_decide(&self) -> i32 {
+    fn cb_decide(&mut self) -> i32 {
         0
     }
 
@@ -1473,7 +1610,7 @@ pub trait ExternalPropagator {
     /// under the current assignment. It returns either a literal to be
     /// propagated or 0, indicating that there is no external propagation under
     /// the current assignment.
-    fn cb_propagate(&self) -> i32 {
+    fn cb_propagate(&mut self) -> i32 {
         0
     }
 
@@ -1484,7 +1621,7 @@ pub trait ExternalPropagator {
     ///
     /// The clause will be learned as an Irredundant Non-Forgettable Clause (see
     /// below at '`cb_has_external_clause`' more details about it).
-    fn cb_add_reason_clause_lit(&self, _propagated_lit: i32) -> i32 {
+    fn cb_add_reason_clause_lit(&mut self, _propagated_lit: i32) -> i32 {
         0
     }
 
@@ -1526,10 +1663,10 @@ pub trait ExternalPropagator {
     /// (therefore frozen) variables, hence no tainting or restore steps
     /// are performed upon their addition. This will be changed in later
     /// versions probably.
-    fn cb_has_external_clause(&self, is_forgettable: &mut bool) -> bool;
+    fn cb_has_external_clause(&mut self, is_forgettable: &mut bool) -> bool;
 
     /// The actual function called to add the external clause.
-    fn cb_add_external_clause_lit(&self) -> i32;
+    fn cb_add_external_clause_lit(&mut self) -> i32;
 }
 
 /// Allows to traverse all remaining irredundant clauses.  Satisfied and
@@ -1558,4 +1695,48 @@ pub trait ClauseIterator {
 /// If 'witness' returns false traversal aborts early.
 pub trait WitnessIterator {
     fn witness(&mut self, clause: &[i32], witness: &[i32], id: u64) -> bool;
+}
+
+/// Trait for proof tracing that allows you to track proof events in real-time.
+/// This is useful for SMT solvers that need to interleave SAT solver clauses
+/// with theory clauses to generate eDRAT proofs.
+pub trait ProofTracer {
+    /// Called when an original clause is added to the solver
+    fn add_original_clause(&mut self, id: u64, redundant: bool, clause: &[i32], restored: bool);
+
+    /// Called when a derived clause is learned by the SAT solver
+    fn add_derived_clause(&mut self, id: u64, redundant: bool, clause: &[i32], antecedents: &[u64]);
+
+    /// Called when a clause is deleted
+    fn delete_clause(&mut self, id: u64, redundant: bool, clause: &[i32]);
+
+    /// Called when a clause is weakened (might be restored later)
+    fn weaken_minus(&mut self, id: u64, clause: &[i32]);
+
+    /// Called when a clause is strengthened
+    fn strengthen(&mut self, id: u64);
+
+    /// Called when a clause is finalized
+    fn finalize_clause(&mut self, id: u64, clause: &[i32]);
+
+    /// Called when an assumption is added
+    fn add_assumption(&mut self, lit: i32);
+
+    /// Called when a constraint is added
+    fn add_constraint(&mut self, clause: &[i32]);
+
+    /// Called when assumptions are reset
+    fn reset_assumptions(&mut self);
+
+    /// Called when an assumption clause is added (negation of failing assumptions)
+    fn add_assumption_clause(&mut self, id: u64, clause: &[i32], antecedents: &[u64]);
+
+    /// Called when the solver concludes SAT
+    fn conclude_sat(&mut self, conclusion_type: i32, model: &[i32]);
+
+    /// Called when the solver concludes UNSAT
+    fn conclude_unsat(&mut self, conclusion_type: i32, clause_ids: &[u64]);
+
+    /// Called when the solver concludes UNKNOWN
+    fn conclude_unknown(&mut self, trail: &[i32]);
 }
