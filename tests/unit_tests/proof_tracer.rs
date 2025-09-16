@@ -486,7 +486,7 @@ fn validate_derived_clauses_antecedents(tracer: &TestProofTracer) {
 
         // Check that derived clause doesn't reference itself
         assert!(
-            !antecedents.contains(&id),
+            !antecedents.contains(id),
             "Derived clause {} references itself as antecedent",
             id
         );
@@ -504,7 +504,7 @@ fn validate_deleted_clauses_existence(tracer: &TestProofTracer) {
 
     for (id, _redundant, clause) in tracer.get_deleted_clauses() {
         assert!(
-            all_added_ids.contains(&id),
+            all_added_ids.contains(id),
             "Deleted clause {} was never added to the solver",
             id
         );
@@ -527,7 +527,7 @@ fn validate_weakened_clauses_existence(tracer: &TestProofTracer) {
 
     for (id, clause) in tracer.get_weakened_clauses() {
         assert!(
-            all_added_ids.contains(&id),
+            all_added_ids.contains(id),
             "Weakened clause {} was never added to the solver",
             id
         );
@@ -568,7 +568,7 @@ fn validate_finalized_clauses_existence(tracer: &TestProofTracer) {
 
     for (id, clause) in tracer.get_finalized_clauses() {
         assert!(
-            all_added_ids.contains(&id),
+            all_added_ids.contains(id),
             "Finalized clause {} was never added to the solver",
             id
         );
@@ -1030,7 +1030,7 @@ fn validate_proof_logical_consistency(tracer: &TestProofTracer) {
 
     for (id, _) in tracer.get_weakened_clauses() {
         assert!(
-            !deleted_ids.contains(&id),
+            !deleted_ids.contains(id),
             "Weakened clause {} was previously deleted",
             id
         );
@@ -1038,7 +1038,7 @@ fn validate_proof_logical_consistency(tracer: &TestProofTracer) {
 
     for (id, _) in tracer.get_finalized_clauses() {
         assert!(
-            !deleted_ids.contains(&id),
+            !deleted_ids.contains(id),
             "Finalized clause {} was previously deleted",
             id
         );
