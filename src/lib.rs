@@ -1172,6 +1172,8 @@ impl CaDiCal {
     // ///   require (CONFIGURING)
     // ///   ensure (CONFIGURING)
     // ///
+    #[allow(clippy::missing_panics_doc)]
+    #[allow(clippy::too_many_lines)]
     pub fn connect_proof_tracer1<'a, 'b: 'a, T: ProofTracer>(
         &'a mut self,
         tracer: &'b mut T,
