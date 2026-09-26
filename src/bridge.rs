@@ -345,7 +345,7 @@ pub mod ffi {
         ///   require (READY)
         ///   ensure (STEADY )
         ///
-        pub fn reserve(solver: &mut UniquePtr<Solver>, min_max_var: i32);
+        pub fn resize(solver: &mut UniquePtr<Solver>, min_max_var: i32);
 
         /// pub fn trace_api_calls(solver: &mut UniquePtr<Solver>, file: String);
 
@@ -876,7 +876,7 @@ pub mod ffi {
         #[allow(clippy::missing_safety_doc)]
         pub unsafe fn new_witness_iterator(
             s: *mut u8,
-            witness: unsafe fn(*mut u8, &[i32], &[i32], u64) -> bool,
+            witness: unsafe fn(*mut u8, &[i32], &[i32], i64) -> bool,
         ) -> UniquePtr<WitnessIterator>;
 
         #[allow(clippy::missing_safety_doc, clippy::too_many_arguments)]
@@ -898,18 +898,18 @@ pub mod ffi {
         #[allow(clippy::missing_safety_doc, clippy::too_many_arguments)]
         pub unsafe fn new_tracer(
             initial_state: *mut u8,
-            add_original_clause: unsafe fn(*mut u8, u64, bool, &[i32], bool),
-            add_derived_clause: unsafe fn(*mut u8, u64, bool, &[i32], &[u64]),
-            delete_clause: unsafe fn(*mut u8, u64, bool, &[i32]),
-            weaken_minus: unsafe fn(*mut u8, u64, &[i32]),
-            strengthen: unsafe fn(*mut u8, u64),
-            finalize_clause: unsafe fn(*mut u8, u64, &[i32]),
+            add_original_clause: unsafe fn(*mut u8, i64, bool, &[i32], bool),
+            add_derived_clause: unsafe fn(*mut u8, i64, bool, i32, &[i32], &[i64]),
+            delete_clause: unsafe fn(*mut u8, i64, bool, &[i32]),
+            weaken_minus: unsafe fn(*mut u8, i64, &[i32]),
+            strengthen: unsafe fn(*mut u8, i64),
+            finalize_clause: unsafe fn(*mut u8, i64, &[i32]),
             add_assumption: unsafe fn(*mut u8, i32),
             add_constraint: unsafe fn(*mut u8, &[i32]),
             reset_assumptions: unsafe fn(*mut u8),
-            add_assumption_clause: unsafe fn(*mut u8, u64, &[i32], &[u64]),
+            add_assumption_clause: unsafe fn(*mut u8, i64, &[i32], &[i64]),
             conclude_sat: unsafe fn(*mut u8, i32, &[i32]),
-            conclude_unsat: unsafe fn(*mut u8, i32, &[u64]),
+            conclude_unsat: unsafe fn(*mut u8, i32, &[i64]),
             conclude_unknown: unsafe fn(*mut u8, &[i32]),
         ) -> UniquePtr<Tracer>;
     }

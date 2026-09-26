@@ -86,6 +86,14 @@ fn compile_cadical() {
 
     // Compile cxx bridge
     build.compile("cadical-rs-bridge");
+
+    let kitten = format!("{CADICAL_PATH}/src/kitten.c");
+    cc::Build::new()
+        .file(&kitten)
+        .opt_level(3)
+        .define("NDEBUG", None)
+        .compile("kitten");
+    println!("cargo:rerun-if-changed={kitten}");
 }
 
 fn main() {

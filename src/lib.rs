@@ -136,11 +136,8 @@
 //!
 //!    let mut solver = CaDiCal::new();
 //!
-//!    // Reserve variable space
-//!    solver.reserve(1000);
-//!
-//!    // Add observed variables for tracking
-//!    solver.add_observed_var(42);
+//!    // Resize variable space
+//!    solver.resize(1000);
 //!
 //!    // Perform simplification
 //!    let simplify_status = solver.simplify(2);
@@ -834,8 +831,8 @@ impl CaDiCal {
     ///   ensure (STEADY )
     ///
     #[inline]
-    pub fn reserve(&mut self, min_max_var: i32) {
-        ffi::reserve(&mut self.solver, min_max_var);
+    pub fn resize(&mut self, min_max_var: i32) {
+        ffi::resize(&mut self.solver, min_max_var);
     }
 
     // pub fn `trace_api_calls(&mut` self, file: String);
@@ -1181,7 +1178,7 @@ impl CaDiCal {
     ) {
         fn add_original_clause<T: ProofTracer>(
             state: *mut u8,
-            id: u64,
+            id: i64,
             redundant: bool,
             clause: &[i32],
             restored: bool,
@@ -1193,35 +1190,36 @@ impl CaDiCal {
 
         fn add_derived_clause<T: ProofTracer>(
             state: *mut u8,
-            id: u64,
+            id: i64,
             redundant: bool,
+            witness: i32,
             clause: &[i32],
-            antecedents: &[u64],
+            antecedents: &[i64],
         ) {
             let ptr: *mut T = state.cast::<T>();
             let t = unsafe { &mut *ptr };
-            t.add_derived_clause(id, redundant, clause, antecedents);
+            t.add_derived_clause(id, redundant, witness, clause, antecedents);
         }
 
-        fn delete_clause<T: ProofTracer>(state: *mut u8, id: u64, redundant: bool, clause: &[i32]) {
+        fn delete_clause<T: ProofTracer>(state: *mut u8, id: i64, redundant: bool, clause: &[i32]) {
             let ptr: *mut T = state.cast::<T>();
             let t = unsafe { &mut *ptr };
             t.delete_clause(id, redundant, clause);
         }
 
-        fn weaken_minus<T: ProofTracer>(state: *mut u8, id: u64, clause: &[i32]) {
+        fn weaken_minus<T: ProofTracer>(state: *mut u8, id: i64, clause: &[i32]) {
             let ptr: *mut T = state.cast::<T>();
             let t = unsafe { &mut *ptr };
             t.weaken_minus(id, clause);
         }
 
-        fn strengthen<T: ProofTracer>(state: *mut u8, id: u64) {
+        fn strengthen<T: ProofTracer>(state: *mut u8, id: i64) {
             let ptr: *mut T = state.cast::<T>();
             let t = unsafe { &mut *ptr };
             t.strengthen(id);
         }
 
-        fn finalize_clause<T: ProofTracer>(state: *mut u8, id: u64, clause: &[i32]) {
+        fn finalize_clause<T: ProofTracer>(state: *mut u8, id: i64, clause: &[i32]) {
             let ptr: *mut T = state.cast::<T>();
             let t = unsafe { &mut *ptr };
             t.finalize_clause(id, clause);
@@ -1247,9 +1245,9 @@ impl CaDiCal {
 
         fn add_assumption_clause<T: ProofTracer>(
             state: *mut u8,
-            id: u64,
+            id: i64,
             clause: &[i32],
-            antecedents: &[u64],
+            antecedents: &[i64],
         ) {
             let ptr: *mut T = state.cast::<T>();
             let t = unsafe { &mut *ptr };
@@ -1265,7 +1263,7 @@ impl CaDiCal {
         fn conclude_unsat<T: ProofTracer>(
             state: *mut u8,
             conclusion_type: i32,
-            clause_ids: &[u64],
+            clause_ids: &[i64],
         ) {
             let ptr: *mut T = state.cast::<T>();
             let t = unsafe { &mut *ptr };
@@ -1421,7 +1419,7 @@ impl CaDiCal {
 
     #[inline]
     pub fn traverse_witnesses_backward<I: WitnessIterator>(&self, i: &mut I) -> bool {
-        fn f<I: WitnessIterator>(state: *mut u8, clause: &[i32], witness: &[i32], id: u64) -> bool {
+        fn f<I: WitnessIterator>(state: *mut u8, clause: &[i32], witness: &[i32], id: i64) -> bool {
             let ptr: *mut I = state.cast::<I>();
             let i = unsafe { &mut *ptr };
             i.witness(clause, witness, id)
@@ -1433,7 +1431,7 @@ impl CaDiCal {
 
     #[inline]
     pub fn traverse_witnesses_forward<I: WitnessIterator>(&self, i: &mut I) -> bool {
-        fn f<I: WitnessIterator>(state: *mut u8, clause: &[i32], witness: &[i32], id: u64) -> bool {
+        fn f<I: WitnessIterator>(state: *mut u8, clause: &[i32], witness: &[i32], id: i64) -> bool {
             let ptr: *mut I = state.cast::<I>();
             let i = unsafe { &mut *ptr };
             i.witness(clause, witness, id)
@@ -1694,7 +1692,7 @@ pub trait ClauseIterator {
 ///
 /// If 'witness' returns false traversal aborts early.
 pub trait WitnessIterator {
-    fn witness(&mut self, clause: &[i32], witness: &[i32], id: u64) -> bool;
+    fn witness(&mut self, clause: &[i32], witness: &[i32], id: i64) -> bool;
 }
 
 /// Trait for proof tracing that allows you to track proof events in real-time.
@@ -1702,22 +1700,30 @@ pub trait WitnessIterator {
 /// with theory clauses to generate eDRAT proofs.
 pub trait ProofTracer {
     /// Called when an original clause is added to the solver
-    fn add_original_clause(&mut self, id: u64, redundant: bool, clause: &[i32], restored: bool);
+    fn add_original_clause(&mut self, id: i64, redundant: bool, clause: &[i32], restored: bool);
 
-    /// Called when a derived clause is learned by the SAT solver
-    fn add_derived_clause(&mut self, id: u64, redundant: bool, clause: &[i32], antecedents: &[u64]);
+    /// Called when a derived clause is learned by the SAT solver.
+    /// If witness != 0 it is a RAT clause.
+    fn add_derived_clause(
+        &mut self,
+        id: i64,
+        redundant: bool,
+        witness: i32,
+        clause: &[i32],
+        antecedents: &[i64],
+    );
 
     /// Called when a clause is deleted
-    fn delete_clause(&mut self, id: u64, redundant: bool, clause: &[i32]);
+    fn delete_clause(&mut self, id: i64, redundant: bool, clause: &[i32]);
 
     /// Called when a clause is weakened (might be restored later)
-    fn weaken_minus(&mut self, id: u64, clause: &[i32]);
+    fn weaken_minus(&mut self, id: i64, clause: &[i32]);
 
     /// Called when a clause is strengthened
-    fn strengthen(&mut self, id: u64);
+    fn strengthen(&mut self, id: i64);
 
     /// Called when a clause is finalized
-    fn finalize_clause(&mut self, id: u64, clause: &[i32]);
+    fn finalize_clause(&mut self, id: i64, clause: &[i32]);
 
     /// Called when an assumption is added
     fn add_assumption(&mut self, lit: i32);
@@ -1729,13 +1735,13 @@ pub trait ProofTracer {
     fn reset_assumptions(&mut self);
 
     /// Called when an assumption clause is added (negation of failing assumptions)
-    fn add_assumption_clause(&mut self, id: u64, clause: &[i32], antecedents: &[u64]);
+    fn add_assumption_clause(&mut self, id: i64, clause: &[i32], antecedents: &[i64]);
 
     /// Called when the solver concludes SAT
     fn conclude_sat(&mut self, conclusion_type: i32, model: &[i32]);
 
     /// Called when the solver concludes UNSAT
-    fn conclude_unsat(&mut self, conclusion_type: i32, clause_ids: &[u64]);
+    fn conclude_unsat(&mut self, conclusion_type: i32, clause_ids: &[i64]);
 
     /// Called when the solver concludes UNKNOWN
     fn conclude_unknown(&mut self, trail: &[i32]);

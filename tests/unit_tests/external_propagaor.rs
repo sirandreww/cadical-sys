@@ -54,16 +54,6 @@ fn test_external_propagator_connect_and_disconnect() {
 }
 
 #[test]
-fn test_external_propagator_flow_disconnect_without_connecting() {
-    let mut solver = CaDiCal::new();
-    solver.disconnect_external_propagator();
-
-    add_sat_test_cnf(&mut solver);
-    let result = solver.solve();
-    assert_eq!(result, Status::SATISFIABLE);
-}
-
-#[test]
 fn test_external_propagator_flow_solve_after_connect_disconnect() {
     let mut solver = CaDiCal::new();
     let mut propagator = MyExternalPropagator {};

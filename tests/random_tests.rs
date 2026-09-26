@@ -32,11 +32,11 @@ impl ClauseIterator for CI {
 }
 
 struct WI {
-    v: Vec<(Vec<i32>, Vec<i32>, u64)>,
+    v: Vec<(Vec<i32>, Vec<i32>, i64)>,
 }
 
 impl WitnessIterator for WI {
-    fn witness(&mut self, clause: &[i32], witness: &[i32], id: u64) -> bool {
+    fn witness(&mut self, clause: &[i32], witness: &[i32], id: i64) -> bool {
         self.v.push((clause.to_vec(), witness.to_vec(), id));
         true
     }
@@ -171,11 +171,8 @@ fn dimacs_solving() {
 fn solver_management() {
     let mut solver = CaDiCal::new();
 
-    // Reserve variable space
-    solver.reserve(1000);
-
-    // Add observed variables for tracking
-    solver.add_observed_var(42);
+    // Resize variable space
+    solver.resize(1000);
 
     // Perform simplification
     let _ = solver.simplify(2);
