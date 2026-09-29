@@ -1,10 +1,10 @@
 # cadical-sys
 
-Rust bindings for the CaDiCaL SAT Solver, providing low-level access to one of the most efficient Boolean Satisfiability (SAT) solving libraries.
+Rust bindings for the `CaDiCaL` SAT Solver, providing low-level access to one of the most efficient Boolean Satisfiability (SAT) solving libraries.
 
 ## Overview
 
-`cadical-sys` offers complete Rust bindings to the CaDiCaL SAT solver using the `cxx` crate, enabling seamless interoperability between Rust and C++ SAT solving capabilities.
+`cadical-sys` offers complete Rust bindings to the `CaDiCaL` SAT solver using the `cxx` crate, enabling seamless interoperability between Rust and C++ SAT solving capabilities.
 
 ### What is a SAT Solver?
 
@@ -15,7 +15,7 @@ A SAT (Boolean Satisfiability) solver is a computational tool that determines wh
 - Cryptanalysis
 - Constraint solving
 
-### About CaDiCaL
+### About `CaDiCaL`
 
 [CaDiCaL](https://github.com/arminbiere/cadical) is a state-of-the-art, modern SAT solver developed by Armin Biere. Known for its:
 - High performance
@@ -25,7 +25,7 @@ A SAT (Boolean Satisfiability) solver is a computational tool that determines wh
 
 ## Features
 
-- Complete binding of CaDiCaL C++ API
+- Complete binding of `CaDiCaL` C++ API
 - Safe Rust wrappers using `cxx` (where possible)
 - Support for:
   - Adding clauses
@@ -138,11 +138,8 @@ cadical-sys = "0.1.0"  # Replace with most recent version
 
    let mut solver = CaDiCal::new();
 
-   // Reserve variable space
-   solver.reserve(1000);
-
-   // Add observed variables for tracking
-   solver.add_observed_var(42);
+   // Resize variable space
+   solver.resize(1000);
 
    // Perform simplification
    let simplify_status = solver.simplify(2);
@@ -154,7 +151,7 @@ cadical-sys = "0.1.0"  # Replace with most recent version
 
 ## Performance Considerations
 
-- CaDiCaL is highly optimized for complex boolean satisfiability problems
+- `CaDiCaL` is highly optimized for complex boolean satisfiability problems
 - Recommended for problems with thousands to millions of variables
 - Lower overhead compared to many other SAT solvers
 
@@ -163,7 +160,6 @@ cadical-sys = "0.1.0"  # Replace with most recent version
 - Requires understanding of boolean logic and SAT solving
 - Performance depends on problem complexity
 - Advanced features require deep knowledge of SAT solving techniques
-- Connecting listeners and propagators is not implemented well enough. Please let me know if you need this feature. 
 
 ## Contributing
 
@@ -171,7 +167,7 @@ Contributions are welcome! Please file issues or submit pull requests on the Git
 
 ## License
 
-CaDiCaL is distributed under the MIT License. Check the original repository for detailed licensing information.
+`CaDiCaL` is distributed under the MIT License. Check the original repository for detailed licensing information.
 
 ## References
 
@@ -181,6 +177,6 @@ CaDiCaL is distributed under the MIT License. Check the original repository for 
 
 ## Acknowledgments
 
-Special thanks to Armin Biere for developing and maintaining CaDiCaL.
+Special thanks to Armin Biere for developing and maintaining `CaDiCaL`.
 
 License: MIT
