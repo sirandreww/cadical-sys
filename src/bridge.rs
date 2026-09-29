@@ -245,7 +245,7 @@ pub mod ffi {
         ///   require (SOLVING)
         ///   ensure (SOLVING)
         ///
-        pub fn force_backtrack(solver: &mut UniquePtr<Solver>, new_level: usize);
+        pub fn force_backtrack(solver: &mut UniquePtr<Solver>, new_level: i32);
 
         //------------------------------------------------------------------------
         /// Adds a literal to the constraint clause. Same functionality as 'add'
@@ -271,6 +271,42 @@ pub mod ffi {
         ///   ensure (UNSATISFIED)
         ///
         pub fn constraint_failed(solver: &mut UniquePtr<Solver>) -> bool;
+
+        /// Collects a subset of those literals that are implied by unit
+        /// propagation by assuming the currently defined (potentially empty)
+        /// set of assumptions (see IPASIR assume(lit)) function. In case
+        /// unit propagation over the defined set of assumptions (or over the
+        /// clause database on its own) leads to conflict, the function
+        /// returns 20 and the content of 'implicates' is undefined. In most
+        /// other case, the function returns 0 (indicating 'UNKNOWN') and
+        /// 'implicates' lists the non-conflicting current value of the
+        /// trail. If ILB is off, in the rare case where where no decision
+        /// was needed and propagation assigned all literals, then the
+        /// 'implicates' lists will contain all assigned literals, which is a
+        /// model. If ILB is on, propagate might also return SAT. In this
+        /// case, 'implicates' will still only contain the implied literals.
+        ///
+        /// Returns
+        ///
+        ///    0 = UNKNOWN
+        ///   10 = SATISFIABLE
+        ///   20 = UNSATISFIABLE
+        ///
+        /// The 'UNKNOWN' result means that unit propagation did not lead to a
+        /// conflict nor to a complete assignment, or limit reached or interrupted
+        /// through 'terminate'.
+        ///
+        ///   require (READY)
+        ///   ensure (INCONCLUSIVE  | SATISFIED | UNSATISFIED)
+        ///
+        pub fn propagate(solver: &mut UniquePtr<Solver>) -> i32;
+
+        /// See the comment for propagate above.
+        ///
+        ///   require (INCONCLUSIVE)
+        ///   ensure (INCONCLUSIVE)
+        ///
+        pub fn implied(solver: &mut UniquePtr<Solver>, implicants: &mut Vec<i32>);
 
         //------------------------------------------------------------------------
         /// This function determines a good splitting literal.  The result can be
@@ -346,6 +382,32 @@ pub mod ffi {
         ///   ensure (STEADY )
         ///
         pub fn resize(solver: &mut UniquePtr<Solver>, min_max_var: i32);
+
+        /// Increase the maximum variable index by a number of new variables.
+        /// initializes 'number_of_vars' new variables and protects them from
+        /// being used by the solver as extension variables (BVA).
+        ///
+        /// It returns the new maximum variable index which is the highest
+        /// variable name of the consecutive range of newly declared variables.
+        /// It has the same state transition and conditions as 'resize' above.
+        ///
+        ///   require (READY)
+        ///   ensure (STEADY)
+        ///
+        pub fn declare_more_variables(
+            solver: &mut UniquePtr<Solver>,
+            number_of_additional_new_vars: i32,
+        ) -> i32;
+
+        /// Returns the next fresh variable that was not used internally.
+        ///
+        pub fn declare_one_more_variable(solver: &mut UniquePtr<Solver>) -> i32;
+
+        /// Get the value of some statistics or -1 if the statistics does not
+        /// exist or is not support. Only requires the state to be initialized.
+        ///
+        #[must_use]
+        pub fn get_statistic_value(solver: &UniquePtr<Solver>, name: String) -> i64;
 
         /// pub fn trace_api_calls(solver: &mut UniquePtr<Solver>, file: String);
 

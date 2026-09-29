@@ -224,12 +224,14 @@ pub enum State {
     UNSATISFIED = 64,
     /// during and after deletion (invalid)
     DELETING = 128,
+    /// unknown allows 'implied'
+    INCONCLUSIVE = 256,
 
     /// These combined states are used to check contracts.
-    /// CONFIGURING | STEADY | SATISFIED | UNSATISFIED,
-    READY = 102,
+    /// CONFIGURING | STEADY | SATISFIED | UNSATISFIED | INCONCLUSIVE,
+    READY = 358,
     /// READY | ADDING
-    VALID = 110,
+    VALID = 366,
     /// INITIALIZING | DELETING
     INVALID = 129,
 }
@@ -245,8 +247,9 @@ impl From<i32> for State {
             32 => State::SATISFIED,
             64 => State::UNSATISFIED,
             128 => State::DELETING,
-            102 => State::READY,
-            110 => State::VALID,
+            256 => State::INCONCLUSIVE,
+            358 => State::READY,
+            366 => State::VALID,
             129 => State::INVALID,
             _ => unreachable!(),
         }
@@ -700,7 +703,7 @@ impl CaDiCal {
     ///   ensure (SOLVING)
     ///
     #[inline]
-    pub fn force_backtrack(&mut self, new_level: usize) {
+    pub fn force_backtrack(&mut self, new_level: i32) {
         ffi::force_backtrack(&mut self.solver, new_level);
     }
 
@@ -733,6 +736,48 @@ impl CaDiCal {
     #[inline]
     pub fn constraint_failed(&mut self) -> bool {
         ffi::constraint_failed(&mut self.solver)
+    }
+
+    /// Collects a subset of those literals that are implied by unit
+    /// propagation by assuming the currently defined (potentially empty)
+    /// set of assumptions (see IPASIR assume(lit)) function. In case
+    /// unit propagation over the defined set of assumptions (or over the
+    /// clause database on its own) leads to conflict, the function
+    /// returns 20 and the content of 'implicates' is undefined. In most
+    /// other case, the function returns 0 (indicating 'UNKNOWN') and
+    /// 'implicates' lists the non-conflicting current value of the
+    /// trail. If ILB is off, in the rare case where where no decision
+    /// was needed and propagation assigned all literals, then the
+    /// 'implicates' lists will contain all assigned literals, which is a
+    /// model. If ILB is on, propagate might also return SAT. In this
+    /// case, 'implicates' will still only contain the implied literals.
+    ///
+    /// Returns
+    ///
+    ///    0 = UNKNOWN
+    ///   10 = SATISFIABLE
+    ///   20 = UNSATISFIABLE
+    ///
+    /// The 'UNKNOWN' result means that unit propagation did not lead to a
+    /// conflict nor to a complete assignment, or limit reached or interrupted
+    /// through 'terminate'.
+    ///
+    ///   require (READY)
+    ///   ensure (INCONCLUSIVE  | SATISFIED | UNSATISFIED)
+    ///
+    #[inline]
+    pub fn propagate(&mut self) -> Status {
+        ffi::propagate(&mut self.solver).into()
+    }
+
+    /// See the comment for `propagate` above.
+    ///
+    ///   require (INCONCLUSIVE)
+    ///   ensure (INCONCLUSIVE)
+    ///
+    #[inline]
+    pub fn implied(&mut self, implicants: &mut Vec<i32>) {
+        ffi::implied(&mut self.solver, implicants);
     }
 
     //------------------------------------------------------------------------
@@ -833,6 +878,38 @@ impl CaDiCal {
     #[inline]
     pub fn resize(&mut self, min_max_var: i32) {
         ffi::resize(&mut self.solver, min_max_var);
+    }
+
+    /// Increase the maximum variable index by a number of new variables.
+    /// initializes 'number_of_vars' new variables and protects them from
+    /// being used by the solver as extension variables (BVA).
+    ///
+    /// It returns the new maximum variable index which is the highest
+    /// variable name of the consecutive range of newly delcared variables.
+    /// It has the same state transition and conditions as 'resize' above.
+    ///
+    ///   require (READY)
+    ///   ensure (STEADY)
+    ///
+    #[inline]
+    pub fn declare_more_variables(&mut self, number_of_additional_new_vars: i32) -> i32 {
+        ffi::declare_more_variables(&mut self.solver, number_of_additional_new_vars)
+    }
+
+    /// Returns the next fresh variable that was not used internally.
+    ///
+    #[inline]
+    pub fn declare_one_more_variable(&mut self) -> i32 {
+        ffi::declare_one_more_variable(&mut self.solver)
+    }
+
+    /// Get the value of some statistics or -1 if the statistics does not
+    /// exist or is not supported. Only requires the state to be initialized.
+    ///
+    #[inline]
+    #[must_use]
+    pub fn get_statistic_value(&self, name: String) -> i64 {
+        ffi::get_statistic_value(&self.solver, name)
     }
 
     // pub fn `trace_api_calls(&mut` self, file: String);

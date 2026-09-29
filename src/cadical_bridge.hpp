@@ -242,7 +242,7 @@ bool is_decision(std::unique_ptr<Solver> &solver, int lit)
     return solver->is_decision(lit);
 }
 
-void force_backtrack(std::unique_ptr<Solver> &solver, size_t new_level)
+void force_backtrack(std::unique_ptr<Solver> &solver, int new_level)
 {
     return solver->force_backtrack(new_level);
 }
@@ -259,6 +259,18 @@ void constrain(std::unique_ptr<Solver> &solver, int lit)
 bool constraint_failed(std::unique_ptr<Solver> &solver)
 {
     return solver->constraint_failed();
+}
+
+int propagate(std::unique_ptr<Solver> &solver)
+{
+    return solver->propagate();
+}
+
+void implied(std::unique_ptr<Solver> &solver, rust::Vec<int> &implicants)
+{
+    std::vector<int> v;
+    solver->implied(v);
+    _copy_vec_from_cxx_to_rust(v, implicants);
 }
 
 // ************************************************************************************************
@@ -340,6 +352,21 @@ int vars(std::unique_ptr<Solver> &solver)
 void resize(std::unique_ptr<Solver> &solver, int min_max_var)
 {
     return solver->resize(min_max_var);
+}
+
+int declare_more_variables(std::unique_ptr<Solver> &solver, int number_of_additional_new_vars)
+{
+    return solver->declare_more_variables(number_of_additional_new_vars);
+}
+
+int declare_one_more_variable(std::unique_ptr<Solver> &solver)
+{
+    return solver->declare_one_more_variable();
+}
+
+int64_t get_statistic_value(const std::unique_ptr<Solver> &solver, rust::String name)
+{
+    return solver->get_statistic_value(name.c_str());
 }
 
 // void trace_api_calls(std::unique_ptr<Solver> &solver, rust::String file)
