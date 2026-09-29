@@ -808,7 +808,7 @@ fn test_proof_tracer_validation_complex_cnf() {
     solver.clause6(&[-3]);
 
     let result = solver.solve();
-    assert!(result == Status::UNSATISFIABLE);
+    assert_eq!(result, Status::UNSATISFIABLE);
     solver.disconnect_proof_tracer1();
 
     // Validate the proof trace
