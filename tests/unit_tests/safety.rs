@@ -351,6 +351,15 @@ fn cloning_after_solving_keeps_the_formula() {
 }
 
 #[test]
+fn replacing_an_external_propagator() {
+    let mut solver = CaDiCal::new();
+    solver.connect_external_propagator(NoopPropagator);
+    solver.connect_external_propagator(NoopPropagator);
+    solver.clause2(1, 2);
+    assert_eq!(solver.solve(), Status::SATISFIABLE);
+}
+
+#[test]
 fn guarded_functions_work_in_the_right_state() {
     let mut solver = CaDiCal::new();
     solver.clause2(1, 2);

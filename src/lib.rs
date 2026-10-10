@@ -787,6 +787,8 @@ impl CaDiCal {
     /// The solver takes ownership of `propagator` and drops it when it is
     /// disconnected, replaced, or the solver is dropped. To read its state
     /// afterwards, pass an `Rc<RefCell<_>>` and keep a clone of the `Rc`.
+    /// Connecting a propagator disconnects any propagator connected earlier,
+    /// which also resets the observed variables.
     ///
     pub fn connect_external_propagator<T: ExternalPropagator + 'static>(
         &mut self,
@@ -837,6 +839,9 @@ impl CaDiCal {
             let i = unsafe { &mut *ptr };
             i.cb_add_external_clause_lit()
         }
+        // CaDiCaL aborts when connecting a second propagator.
+        self.disconnect_external_propagator();
+
         let is_lazy = propagator.is_lazy();
         let are_reasons_forgettable = propagator.are_reasons_forgettable();
 
