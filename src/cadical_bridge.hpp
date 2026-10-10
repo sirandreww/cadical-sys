@@ -37,15 +37,16 @@ using CaDiCaL::ConclusionType;
 // helper functions
 // ************************************************************************************************
 
-FILE *_read_file(rust::String file, const char *mode)
+// Error returned to Rust when a file cannot be opened. The message is built
+// from 'const char *' only: converting between 'rust::String' and
+// 'std::string' needs cxx's runtime to use the same C++ standard library as
+// this file, which is not the case when building with clang on Linux.
+rust::String _open_error(rust::String &file)
 {
-    FILE *fptr = fopen(file.c_str(), mode);
-    if (fptr == NULL)
-    {
-        printf("Failed to open file\n");
-        exit(1);
-    }
-    return fptr;
+    std::string message = "failed to open file '";
+    message += file.c_str();
+    message += "'";
+    return rust::String(message.c_str());
 }
 
 template <typename T>
@@ -59,9 +60,10 @@ void _copy_vec_from_cxx_to_rust(const std::vector<T> &source, rust::Vec<T> &dest
 
 rust::String _convert_char_to_rust_string(const char *str)
 {
+    // CaDiCaL returns NULL for success, which Rust treats as an empty string.
     if (str == NULL)
     {
-        return rust::String("Null");
+        return rust::String();
     }
     else
     {
@@ -342,13 +344,6 @@ void reserve(std::unique_ptr<Solver> &solver, int min_max_var)
     return solver->reserve(min_max_var);
 }
 
-// void trace_api_calls(std::unique_ptr<Solver> &solver, rust::String file)
-// {
-//     FILE *fptr = _read_file(file, "w+");
-//     solver->trace_api_calls(fptr);
-//     fclose(fptr);
-// }
-
 bool is_valid_option(rust::String name)
 {
     return Solver::is_valid_option(name.c_str());
@@ -466,10 +461,11 @@ void unphase(std::unique_ptr<Solver> &solver, int lit)
 
 bool trace_proof1(std::unique_ptr<Solver> &solver, rust::String file, rust::String name)
 {
-    auto fptr = _read_file(file, "w+");
-    auto r = solver->trace_proof(fptr, name.c_str());
-    fclose(fptr);
-    return r;
+    // CaDiCaL keeps writing to a 'FILE *' passed to 'trace_proof' until the
+    // trace is closed, but never closes it. Let it open the file by path
+    // instead so that it owns (and closes) it. 'name' only appears in messages.
+    (void)name;
+    return solver->trace_proof(file.c_str());
 }
 
 bool trace_proof2(std::unique_ptr<Solver> &solver, rust::String path)
@@ -569,7 +565,11 @@ bool traverse_witnesses_forward(const std::unique_ptr<Solver> &solver, std::uniq
 
 rust::String read_dimacs1(std::unique_ptr<Solver> &solver, rust::String file, rust::String name, int &vars, int strict)
 {
-    FILE *fptr = _read_file(file, "r");
+    FILE *fptr = fopen(file.c_str(), "r");
+    if (fptr == NULL)
+    {
+        return _open_error(file);
+    }
     auto r = solver->read_dimacs(fptr, name.c_str(), vars, strict);
     fclose(fptr);
     return _convert_char_to_rust_string(r);
@@ -585,7 +585,11 @@ rust::String read_dimacs3(std::unique_ptr<Solver> &solver, rust::String file, ru
                           rust::Vec<int> &cubes)
 {
     std::vector<int> internal_cubes;
-    FILE *fptr = _read_file(file, "r");
+    FILE *fptr = fopen(file.c_str(), "r");
+    if (fptr == NULL)
+    {
+        return _open_error(file);
+    }
     auto r = solver->read_dimacs(fptr, name.c_str(), vars, strict, incremental, internal_cubes);
     fclose(fptr);
     _copy_vec_from_cxx_to_rust(internal_cubes, cubes);
@@ -612,11 +616,16 @@ rust::String write_extension(std::unique_ptr<Solver> &solver, rust::String path)
     return _convert_char_to_rust_string(solver->write_extension(path.c_str()));
 }
 
-void build(rust::String file, rust::String prefix)
+rust::String build(rust::String file, rust::String prefix)
 {
-    FILE *fptr = _read_file(file, "w+");
+    FILE *fptr = fopen(file.c_str(), "w+");
+    if (fptr == NULL)
+    {
+        return _open_error(file);
+    }
     Solver::build(fptr, prefix.c_str());
     fclose(fptr);
+    return rust::String();
 }
 
 // ************************************************************************************************

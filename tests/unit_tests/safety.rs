@@ -293,3 +293,114 @@ fn guarded_functions_work_in_the_right_state() {
     assert_eq!(solver.solve(), Status::UNSATISFIABLE);
     assert!(solver.failed(-1) || solver.failed(-2));
 }
+
+// ---------------------------------------------------------------------------
+// File handling
+// ---------------------------------------------------------------------------
+
+fn temp_path(name: &str) -> String {
+    std::env::temp_dir()
+        .join(format!("cadical_sys_{}_{name}", std::process::id()))
+        .to_str()
+        .unwrap()
+        .to_owned()
+}
+
+#[test]
+fn read_dimacs_reports_success_as_ok() {
+    let mut solver = CaDiCal::new();
+    let mut vars = 0;
+    assert_eq!(
+        solver.read_dimacs1("./tests/problem.cnf", "problem", &mut vars, 0),
+        Ok(())
+    );
+    assert!(vars > 0);
+    // CaDiCaL only reads DIMACS right after initialization.
+    let mut solver = CaDiCal::new();
+    let mut vars = 0;
+    assert_eq!(
+        solver.read_dimacs2("./tests/problem.cnf", &mut vars, 0),
+        Ok(())
+    );
+}
+
+#[test]
+fn read_dimacs_of_missing_file_is_an_error() {
+    // This used to call `exit(1)` from inside the library.
+    let mut solver = CaDiCal::new();
+    let mut vars = 0;
+    let missing = "./tests/does_not_exist.cnf";
+    assert!(solver
+        .read_dimacs1(missing, "missing", &mut vars, 0)
+        .is_err());
+    let mut solver = CaDiCal::new();
+    assert!(solver.read_dimacs2(missing, &mut vars, 0).is_err());
+    let (mut incremental, mut cubes) = (false, Vec::new());
+    let mut solver = CaDiCal::new();
+    assert!(solver
+        .read_dimacs3(
+            missing,
+            "missing",
+            &mut vars,
+            0,
+            &mut incremental,
+            &mut cubes
+        )
+        .is_err());
+    let mut solver = CaDiCal::new();
+    assert!(solver
+        .read_dimacs4(missing, &mut vars, 0, &mut incremental, &mut cubes)
+        .is_err());
+}
+
+#[test]
+fn write_dimacs_round_trips() {
+    let path = temp_path("round_trip.cnf");
+    let mut solver = CaDiCal::new();
+    // No unit clauses: `write_dimacs` only writes units of frozen variables.
+    solver.clause2(1, 2);
+    solver.clause2(1, -2);
+    assert_eq!(solver.write_dimacs(&path, 0), Ok(()));
+
+    let mut reread = CaDiCal::new();
+    let mut vars = 0;
+    assert_eq!(reread.read_dimacs2(&path, &mut vars, 1), Ok(()));
+    assert_eq!(reread.solve(), Status::SATISFIABLE);
+    assert!(reread.val(1) > 0);
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+#[should_panic(expected = "read_dimacs2 requires the solver to be in state CONFIGURING")]
+fn read_dimacs_after_adding_clauses_panics() {
+    let mut solver = CaDiCal::new();
+    solver.clause1(1);
+    let mut vars = 0;
+    let _ = solver.read_dimacs2("./tests/problem.cnf", &mut vars, 0);
+}
+
+#[test]
+fn build_to_unwritable_path_is_an_error() {
+    assert!(CaDiCal::build("./tests/no_such_dir/build.txt", "c ").is_err());
+}
+
+#[test]
+fn trace_proof1_writes_the_whole_proof() {
+    // `trace_proof1` used to close the file right after handing it to CaDiCaL,
+    // which then kept writing the proof to the closed `FILE *`.
+    let path = temp_path("proof.drat");
+    {
+        let mut solver = CaDiCal::new();
+        assert!(solver.set("binary", 0));
+        assert!(solver.trace_proof1(&path, "proof"));
+        add_pigeonhole(&mut solver, 4);
+        assert_eq!(solver.solve(), Status::UNSATISFIABLE);
+        solver.close_proof_trace(false);
+    }
+    let proof = std::fs::read_to_string(&path).unwrap();
+    assert!(
+        proof.lines().any(|line| line.trim() == "0"),
+        "proof should end with the empty clause"
+    );
+    std::fs::remove_file(path).unwrap();
+}
