@@ -9,7 +9,7 @@
 - Updated to `CaDiCaL` 3.0.1: proof and witness clause ids are `i64`, `ProofTracer::add_derived_clause` has a `witness` parameter, `State` has a new `INCONCLUSIVE` variant and new `READY`/`VALID` values.
 - `force_backtrack` was removed (it could only abort when called from safe code); `reserve` is deprecated in favour of `resize`.
 - The raw FFI module `cadical_sys::bridge` is private.
-- Rust edition 2024; the minimum supported Rust version is 1.85.
+- Rust edition 2024; the minimum supported Rust version is 1.88 (required by `cxx`).
 
 ### Fixed
 
