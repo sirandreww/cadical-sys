@@ -15,6 +15,7 @@ readme = "README.md"
 cxx = "1.0.204"
 
 [build-dependencies]
+cc = "1.7.0"
 cxx-build = "1.0.204"
 
 [dev-dependencies]

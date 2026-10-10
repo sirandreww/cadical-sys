@@ -244,7 +244,7 @@ bool is_decision(std::unique_ptr<Solver> &solver, int lit)
     return solver->is_decision(lit);
 }
 
-void force_backtrack(std::unique_ptr<Solver> &solver, size_t new_level)
+void force_backtrack(std::unique_ptr<Solver> &solver, int new_level)
 {
     return solver->force_backtrack(new_level);
 }
@@ -339,9 +339,9 @@ int vars(std::unique_ptr<Solver> &solver)
     return solver->vars();
 }
 
-void reserve(std::unique_ptr<Solver> &solver, int min_max_var)
+void resize(std::unique_ptr<Solver> &solver, int min_max_var)
 {
-    return solver->reserve(min_max_var);
+    return solver->resize(min_max_var);
 }
 
 bool is_valid_option(rust::String name)
@@ -693,12 +693,12 @@ struct CustomClauseIterator : public ClauseIterator
 
 struct CustomWitnessIterator : public WitnessIterator
 {
-    rust::Fn<bool(uint8_t *, const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> f;
+    rust::Fn<bool(uint8_t *, const rust::Slice<const int>, const rust::Slice<const int>, int64_t)> f;
     uint8_t *s;
 
-    CustomWitnessIterator(uint8_t *s, rust::Fn<bool(uint8_t *, const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> f) : f(f), s(s) {}
+    CustomWitnessIterator(uint8_t *s, rust::Fn<bool(uint8_t *, const rust::Slice<const int>, const rust::Slice<const int>, int64_t)> f) : f(f), s(s) {}
 
-    bool witness(const std::vector<int> &clause, const std::vector<int> &witness, uint64_t id) override
+    bool witness(const std::vector<int> &clause, const std::vector<int> &witness, int64_t id) override
     {
 
         rust::Slice<const int> rust_clause{clause.data(), clause.size()};
@@ -801,34 +801,34 @@ struct CustomExternalPropagator : public ExternalPropagator
 struct CustomTracer : public Tracer
 {
     uint8_t *s;
-    rust::Fn<void(uint8_t *, uint64_t, bool, const rust::Slice<const int>, bool)> rust_add_original_clause;
-    rust::Fn<void(uint8_t *, uint64_t, bool, const rust::Slice<const int>, const rust::Slice<const uint64_t>)> rust_add_derived_clause;
-    rust::Fn<void(uint8_t *, uint64_t, bool, const rust::Slice<const int>)> rust_delete_clause;
-    rust::Fn<void(uint8_t *, uint64_t, const rust::Slice<const int>)> rust_weaken_minus;
-    rust::Fn<void(uint8_t *, uint64_t)> rust_strengthen;
-    rust::Fn<void(uint8_t *, uint64_t, const rust::Slice<const int>)> rust_finalize_clause;
+    rust::Fn<void(uint8_t *, int64_t, bool, const rust::Slice<const int>, bool)> rust_add_original_clause;
+    rust::Fn<void(uint8_t *, int64_t, bool, int, const rust::Slice<const int>, const rust::Slice<const int64_t>)> rust_add_derived_clause;
+    rust::Fn<void(uint8_t *, int64_t, bool, const rust::Slice<const int>)> rust_delete_clause;
+    rust::Fn<void(uint8_t *, int64_t, const rust::Slice<const int>)> rust_weaken_minus;
+    rust::Fn<void(uint8_t *, int64_t)> rust_strengthen;
+    rust::Fn<void(uint8_t *, int64_t, const rust::Slice<const int>)> rust_finalize_clause;
     rust::Fn<void(uint8_t *, int)> rust_add_assumption;
     rust::Fn<void(uint8_t *, const rust::Slice<const int>)> rust_add_constraint;
     rust::Fn<void(uint8_t *)> rust_reset_assumptions;
-    rust::Fn<void(uint8_t *, uint64_t, const rust::Slice<const int>, const rust::Slice<const uint64_t>)> rust_add_assumption_clause;
+    rust::Fn<void(uint8_t *, int64_t, const rust::Slice<const int>, const rust::Slice<const int64_t>)> rust_add_assumption_clause;
     rust::Fn<void(uint8_t *, int, const rust::Slice<const int>)> rust_conclude_sat;
-    rust::Fn<void(uint8_t *, int, const rust::Slice<const uint64_t>)> rust_conclude_unsat;
+    rust::Fn<void(uint8_t *, int, const rust::Slice<const int64_t>)> rust_conclude_unsat;
     rust::Fn<void(uint8_t *, const rust::Slice<const int>)> rust_conclude_unknown;
 
     CustomTracer(
         uint8_t *s,
-        rust::Fn<void(uint8_t *, uint64_t, bool, const rust::Slice<const int>, bool)> rust_add_original_clause,
-        rust::Fn<void(uint8_t *, uint64_t, bool, const rust::Slice<const int>, const rust::Slice<const uint64_t>)> rust_add_derived_clause,
-        rust::Fn<void(uint8_t *, uint64_t, bool, const rust::Slice<const int>)> rust_delete_clause,
-        rust::Fn<void(uint8_t *, uint64_t, const rust::Slice<const int>)> rust_weaken_minus,
-        rust::Fn<void(uint8_t *, uint64_t)> rust_strengthen,
-        rust::Fn<void(uint8_t *, uint64_t, const rust::Slice<const int>)> rust_finalize_clause,
+        rust::Fn<void(uint8_t *, int64_t, bool, const rust::Slice<const int>, bool)> rust_add_original_clause,
+        rust::Fn<void(uint8_t *, int64_t, bool, int, const rust::Slice<const int>, const rust::Slice<const int64_t>)> rust_add_derived_clause,
+        rust::Fn<void(uint8_t *, int64_t, bool, const rust::Slice<const int>)> rust_delete_clause,
+        rust::Fn<void(uint8_t *, int64_t, const rust::Slice<const int>)> rust_weaken_minus,
+        rust::Fn<void(uint8_t *, int64_t)> rust_strengthen,
+        rust::Fn<void(uint8_t *, int64_t, const rust::Slice<const int>)> rust_finalize_clause,
         rust::Fn<void(uint8_t *, int)> rust_add_assumption,
         rust::Fn<void(uint8_t *, const rust::Slice<const int>)> rust_add_constraint,
         rust::Fn<void(uint8_t *)> rust_reset_assumptions,
-        rust::Fn<void(uint8_t *, uint64_t, const rust::Slice<const int>, const rust::Slice<const uint64_t>)> rust_add_assumption_clause,
+        rust::Fn<void(uint8_t *, int64_t, const rust::Slice<const int>, const rust::Slice<const int64_t>)> rust_add_assumption_clause,
         rust::Fn<void(uint8_t *, int, const rust::Slice<const int>)> rust_conclude_sat,
-        rust::Fn<void(uint8_t *, int, const rust::Slice<const uint64_t>)> rust_conclude_unsat,
+        rust::Fn<void(uint8_t *, int, const rust::Slice<const int64_t>)> rust_conclude_unsat,
         rust::Fn<void(uint8_t *, const rust::Slice<const int>)> rust_conclude_unknown)
         : s(s),
           rust_add_original_clause(rust_add_original_clause),
@@ -845,37 +845,37 @@ struct CustomTracer : public Tracer
           rust_conclude_unsat(rust_conclude_unsat),
           rust_conclude_unknown(rust_conclude_unknown) {}
 
-    void add_original_clause(uint64_t id, bool redundant, const std::vector<int> &clause, bool restored = false) override
+    void add_original_clause(int64_t id, bool redundant, const std::vector<int> &clause, bool restored = false) override
     {
         rust::Slice<const int> slice{clause.data(), clause.size()};
         rust_add_original_clause(s, id, redundant, slice, restored);
     }
 
-    void add_derived_clause(uint64_t id, bool redundant, const std::vector<int> &clause, const std::vector<uint64_t> &antecedents) override
+    void add_derived_clause(int64_t id, bool redundant, int witness, const std::vector<int> &clause, const std::vector<int64_t> &antecedents) override
     {
         rust::Slice<const int> slice{clause.data(), clause.size()};
-        rust::Slice<const uint64_t> antecedents_slice{antecedents.data(), antecedents.size()};
-        rust_add_derived_clause(s, id, redundant, slice, antecedents_slice);
+        rust::Slice<const int64_t> antecedents_slice{antecedents.data(), antecedents.size()};
+        rust_add_derived_clause(s, id, redundant, witness, slice, antecedents_slice);
     }
 
-    void delete_clause(uint64_t id, bool redundant, const std::vector<int> &clause) override
+    void delete_clause(int64_t id, bool redundant, const std::vector<int> &clause) override
     {
         rust::Slice<const int> slice{clause.data(), clause.size()};
         rust_delete_clause(s, id, redundant, slice);
     }
 
-    void weaken_minus(uint64_t id, const std::vector<int> &clause) override
+    void weaken_minus(int64_t id, const std::vector<int> &clause) override
     {
         rust::Slice<const int> slice{clause.data(), clause.size()};
         rust_weaken_minus(s, id, slice);
     }
 
-    void strengthen(uint64_t id) override
+    void strengthen(int64_t id) override
     {
         rust_strengthen(s, id);
     }
 
-    void finalize_clause(uint64_t id, const std::vector<int> &clause) override
+    void finalize_clause(int64_t id, const std::vector<int> &clause) override
     {
         rust::Slice<const int> slice{clause.data(), clause.size()};
         rust_finalize_clause(s, id, slice);
@@ -897,10 +897,10 @@ struct CustomTracer : public Tracer
         rust_reset_assumptions(s);
     }
 
-    void add_assumption_clause(uint64_t id, const std::vector<int> &clause, const std::vector<uint64_t> &antecedents) override
+    void add_assumption_clause(int64_t id, const std::vector<int> &clause, const std::vector<int64_t> &antecedents) override
     {
         rust::Slice<const int> clause_slice{clause.data(), clause.size()};
-        rust::Slice<const uint64_t> antecedents_slice{antecedents.data(), antecedents.size()};
+        rust::Slice<const int64_t> antecedents_slice{antecedents.data(), antecedents.size()};
         rust_add_assumption_clause(s, id, clause_slice, antecedents_slice);
     }
 
@@ -910,9 +910,9 @@ struct CustomTracer : public Tracer
         rust_conclude_sat(s, 0, slice); // 0 for SAT conclusion type
     }
 
-    void conclude_unsat(ConclusionType conclusion_type, const std::vector<uint64_t> &clause_ids) override
+    void conclude_unsat(ConclusionType conclusion_type, const std::vector<int64_t> &clause_ids) override
     {
-        rust::Slice<const uint64_t> slice{clause_ids.data(), clause_ids.size()};
+        rust::Slice<const int64_t> slice{clause_ids.data(), clause_ids.size()};
         rust_conclude_unsat(s, static_cast<int>(conclusion_type), slice);
     }
 
@@ -958,7 +958,7 @@ std::unique_ptr<ClauseIterator> new_clause_iterator(
 
 std::unique_ptr<WitnessIterator> new_witness_iterator(
     uint8_t *initial_state,
-    rust::Fn<bool(uint8_t *, const rust::Slice<const int>, const rust::Slice<const int>, uint64_t)> witness)
+    rust::Fn<bool(uint8_t *, const rust::Slice<const int>, const rust::Slice<const int>, int64_t)> witness)
 {
     return std::unique_ptr<WitnessIterator>(new CustomWitnessIterator(initial_state, witness));
 }
@@ -994,18 +994,18 @@ std::unique_ptr<ExternalPropagator> new_external_propagator(
 
 std::unique_ptr<Tracer> new_tracer(
     uint8_t *initial_state,
-    rust::Fn<void(uint8_t *, uint64_t, bool, const rust::Slice<const int>, bool)> add_original_clause,
-    rust::Fn<void(uint8_t *, uint64_t, bool, const rust::Slice<const int>, const rust::Slice<const uint64_t>)> add_derived_clause,
-    rust::Fn<void(uint8_t *, uint64_t, bool, const rust::Slice<const int>)> delete_clause,
-    rust::Fn<void(uint8_t *, uint64_t, const rust::Slice<const int>)> weaken_minus,
-    rust::Fn<void(uint8_t *, uint64_t)> strengthen,
-    rust::Fn<void(uint8_t *, uint64_t, const rust::Slice<const int>)> finalize_clause,
+    rust::Fn<void(uint8_t *, int64_t, bool, const rust::Slice<const int>, bool)> add_original_clause,
+    rust::Fn<void(uint8_t *, int64_t, bool, int, const rust::Slice<const int>, const rust::Slice<const int64_t>)> add_derived_clause,
+    rust::Fn<void(uint8_t *, int64_t, bool, const rust::Slice<const int>)> delete_clause,
+    rust::Fn<void(uint8_t *, int64_t, const rust::Slice<const int>)> weaken_minus,
+    rust::Fn<void(uint8_t *, int64_t)> strengthen,
+    rust::Fn<void(uint8_t *, int64_t, const rust::Slice<const int>)> finalize_clause,
     rust::Fn<void(uint8_t *, int)> add_assumption,
     rust::Fn<void(uint8_t *, const rust::Slice<const int>)> add_constraint,
     rust::Fn<void(uint8_t *)> reset_assumptions,
-    rust::Fn<void(uint8_t *, uint64_t, const rust::Slice<const int>, const rust::Slice<const uint64_t>)> add_assumption_clause,
+    rust::Fn<void(uint8_t *, int64_t, const rust::Slice<const int>, const rust::Slice<const int64_t>)> add_assumption_clause,
     rust::Fn<void(uint8_t *, int, const rust::Slice<const int>)> conclude_sat,
-    rust::Fn<void(uint8_t *, int, const rust::Slice<const uint64_t>)> conclude_unsat,
+    rust::Fn<void(uint8_t *, int, const rust::Slice<const int64_t>)> conclude_unsat,
     rust::Fn<void(uint8_t *, const rust::Slice<const int>)> conclude_unknown)
 {
     return std::unique_ptr<Tracer>(new CustomTracer(

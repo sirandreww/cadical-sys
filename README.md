@@ -172,10 +172,7 @@ while it is connected, share it through an `Rc<RefCell<_>>`:
    let mut solver = CaDiCal::new();
 
    // Reserve variable space
-   solver.reserve(1000);
-
-   // Add observed variables for tracking
-   solver.add_observed_var(42);
+   solver.resize(1000);
 
    // Perform simplification
    let simplify_status = solver.simplify(2);
