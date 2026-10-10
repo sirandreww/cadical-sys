@@ -129,14 +129,8 @@ jobs:
   # Windows job
   #################################################################################################
 
-  windows:
-    name: Windows
-    runs-on: windows-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --verbose
+  # No Windows job: CaDiCaL's own headers use GCC/Clang extensions
+  # ('__attribute__'), so it cannot be compiled with MSVC.
 
   #################################################################################################
   # Minimum supported Rust version (rust-version in Cargo.toml)

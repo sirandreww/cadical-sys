@@ -227,6 +227,7 @@ To stop a long-running `solve` from another thread, connect a
 
 ## Limitations
 
+- `CaDiCaL` cannot be compiled with MSVC, so the `*-windows-msvc` targets are not supported
 - Requires understanding of boolean logic and SAT solving
 - Performance depends on problem complexity
 - Advanced features require deep knowledge of SAT solving techniques
