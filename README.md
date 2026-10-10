@@ -1,10 +1,10 @@
 # cadical-sys
 
-Rust bindings for the CaDiCaL SAT Solver, providing low-level access to one of the most efficient Boolean Satisfiability (SAT) solving libraries.
+Rust bindings for the `CaDiCaL` SAT Solver, providing low-level access to one of the most efficient Boolean Satisfiability (SAT) solving libraries.
 
 ## Overview
 
-`cadical-sys` offers complete Rust bindings to the CaDiCaL SAT solver using the `cxx` crate, enabling seamless interoperability between Rust and C++ SAT solving capabilities.
+`cadical-sys` offers complete Rust bindings to the `CaDiCaL` SAT solver using the `cxx` crate, enabling seamless interoperability between Rust and C++ SAT solving capabilities.
 
 ### What is a SAT Solver?
 
@@ -15,7 +15,7 @@ A SAT (Boolean Satisfiability) solver is a computational tool that determines wh
 - Cryptanalysis
 - Constraint solving
 
-### About CaDiCaL
+### About `CaDiCaL`
 
 [CaDiCaL](https://github.com/arminbiere/cadical) is a state-of-the-art, modern SAT solver developed by Armin Biere. Known for its:
 - High performance
@@ -25,8 +25,8 @@ A SAT (Boolean Satisfiability) solver is a computational tool that determines wh
 
 ## Features
 
-- Complete binding of CaDiCaL C++ API
-- Safe Rust wrappers using `cxx` (where possible)
+- Complete binding of `CaDiCaL` C++ API
+- A safe Rust API built with `cxx`: misuse that would make `CaDiCaL` abort the process panics instead
 - Support for:
   - Adding clauses
   - Solving boolean satisfiability problems
@@ -78,7 +78,7 @@ cadical-sys = "0.7"
 ```rust
    use cadical_sys::Status;
    use cadical_sys::CaDiCal;
-
+   
    let mut solver = CaDiCal::new();
 
    // Configure the solver
@@ -132,7 +132,7 @@ cadical-sys = "0.7"
    }
 ```
 
-## Callbacks
+### Callbacks
 
 The solver takes ownership of connected callbacks (terminators, learners,
 listeners, external propagators and proof tracers). To inspect a callback
@@ -165,7 +165,7 @@ while it is connected, share it through an `Rc<RefCell<_>>`:
    println!("learned {} clauses", learner.borrow().0);
 ```
 
-#Callbacks run inside the solver's C++ code. A panic in a callback cannot
+Callbacks run inside the solver's C++ code. A panic in a callback cannot
 unwind through it, so it aborts the process. In particular, don't hold a
 `borrow()` of a shared callback while calling into the solver.
 
@@ -202,7 +202,7 @@ To stop a long-running `solve` from another thread, connect a
    assert_eq!(solver.solve(), Status::UNKNOWN);
 ```
 
-## Demonstrating advanced solver interactions
+### Demonstrating advanced solver interactions
 ```rust
    use cadical_sys::CaDiCal;
 
@@ -221,7 +221,7 @@ To stop a long-running `solve` from another thread, connect a
 
 ## Performance Considerations
 
-- CaDiCaL is highly optimized for complex boolean satisfiability problems
+- `CaDiCaL` is highly optimized for complex boolean satisfiability problems
 - Recommended for problems with thousands to millions of variables
 - Lower overhead compared to many other SAT solvers
 
@@ -230,7 +230,6 @@ To stop a long-running `solve` from another thread, connect a
 - Requires understanding of boolean logic and SAT solving
 - Performance depends on problem complexity
 - Advanced features require deep knowledge of SAT solving techniques
-- Connecting listeners and propagators is not implemented well enough. Please let me know if you need this feature. 
 
 ## Contributing
 
@@ -238,7 +237,7 @@ Contributions are welcome! Please file issues or submit pull requests on the Git
 
 ## License
 
-CaDiCaL is distributed under the MIT License. Check the original repository for detailed licensing information.
+`CaDiCaL` is distributed under the MIT License. Check the original repository for detailed licensing information.
 
 ## References
 
@@ -248,6 +247,4 @@ CaDiCaL is distributed under the MIT License. Check the original repository for 
 
 ## Acknowledgments
 
-Special thanks to Armin Biere for developing and maintaining CaDiCaL.
-
-License: MIT
+Special thanks to Armin Biere for developing and maintaining `CaDiCaL`.
