@@ -4,12 +4,15 @@ fn init_submodules() {
     if std::path::Path::new("cadical/src").exists() {
         return;
     }
-    let _ = Command::new("git")
-        .arg("submodule")
-        .arg("update")
-        .arg("--init")
+    let output = Command::new("git")
+        .args(["submodule", "update", "--init"])
         .output()
-        .expect("Failed to execute git submodule update --init.");
+        .expect("cadical submodule is missing and `git` could not be run to fetch it");
+    assert!(
+        output.status.success(),
+        "cadical submodule is missing and `git submodule update --init` failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
 
 fn compile_cadical() {
@@ -56,11 +59,6 @@ fn compile_cadical() {
             files.push(path_str);
         }
     }
-    // files.push("src/cadical_bridge.cpp".to_string());
-
-    // Add bridge source for cxx
-    // files.push("src/cadical_bridge.cpp".to_string());
-
     build.files(files.iter());
 
     // Rerun if these change

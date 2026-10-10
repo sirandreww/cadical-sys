@@ -41,7 +41,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cadical-sys = "0.1.0"  # Replace with most recent version
+cadical-sys = "0.7"
 ```
 
 ## Usage Examples

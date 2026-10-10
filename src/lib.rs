@@ -39,7 +39,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! cadical-sys = "0.1.0"  # Replace with most recent version
+//! cadical-sys = "0.7"
 //! ```
 //!
 //! # Usage Examples
@@ -218,6 +218,11 @@ use cxx::memory::UniquePtrTarget;
 use cxx::UniquePtr;
 use std::cell::RefCell;
 use std::rc::Rc;
+
+// Compile and run the README examples as doctests so they cannot go stale.
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+struct ReadmeDoctests;
 
 /// This module contains the FFI bindings to the `CaDiCaL` SAT solver.
 /// Some functions are unsafe due to necessity.
