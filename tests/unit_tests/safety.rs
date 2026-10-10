@@ -419,6 +419,15 @@ fn concluding_before_solving_panics() {
 }
 
 #[test]
+#[should_panic(expected = "melt called on literal 1, which is not frozen")]
+fn melting_twice_after_one_freeze_panics() {
+    let mut solver = CaDiCal::new();
+    solver.freeze(1);
+    solver.melt(1);
+    solver.melt(1);
+}
+
+#[test]
 fn guarded_functions_work_in_the_right_state() {
     let mut solver = CaDiCal::new();
     solver.clause2(1, 2);

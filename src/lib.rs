@@ -1298,10 +1298,20 @@ impl CaDiCal {
         ffi::freeze(&mut self.solver, lit);
     }
 
+    /// Undo one [`CaDiCal::freeze`] of `lit`.
+    ///
+    /// # Panics
+    ///
+    /// If `lit` is not frozen. `CaDiCaL` would otherwise abort the process.
+    ///
     #[inline]
     #[track_caller]
     pub fn melt(&mut self, lit: i32) {
         require_valid_lit("melt", lit);
+        assert!(
+            self.frozen(lit),
+            "melt called on literal {lit}, which is not frozen"
+        );
         ffi::melt(&mut self.solver, lit);
     }
 
