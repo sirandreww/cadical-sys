@@ -324,6 +324,33 @@ fn zero_still_terminates_a_clause() {
 }
 
 #[test]
+#[should_panic(expected = "copy requires the source solver to be READY")]
+fn cloning_in_the_middle_of_a_clause_panics() {
+    let mut solver = CaDiCal::new();
+    solver.add(1);
+    let _ = solver.clone();
+}
+
+#[test]
+#[should_panic(expected = "copy requires the solver to be in state CONFIGURING")]
+fn copying_into_a_used_solver_panics() {
+    let source = CaDiCal::new();
+    let mut destination = CaDiCal::new();
+    destination.clause1(1);
+    CaDiCal::copy(&source, &mut destination);
+}
+
+#[test]
+fn cloning_after_solving_keeps_the_formula() {
+    let mut solver = CaDiCal::new();
+    solver.clause1(1);
+    assert_eq!(solver.solve(), Status::SATISFIABLE);
+    let mut clone = solver.clone();
+    clone.clause1(-1);
+    assert_eq!(clone.solve(), Status::UNSATISFIABLE);
+}
+
+#[test]
 fn guarded_functions_work_in_the_right_state() {
     let mut solver = CaDiCal::new();
     solver.clause2(1, 2);

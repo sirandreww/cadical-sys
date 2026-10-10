@@ -377,7 +377,8 @@ pub struct CaDiCal {
 }
 
 /// Cloning copies the formula and options (see [`CaDiCal::copy`]) but not any
-/// connected callbacks; the clone starts with none connected.
+/// connected callbacks; the clone starts with none connected. Like `copy`, it
+/// panics if the solver is not READY, e.g. in the middle of adding a clause.
 impl Clone for CaDiCal {
     fn clone(&self) -> Self {
         let mut r = Self::new();
@@ -1097,8 +1098,21 @@ impl CaDiCal {
     ///   other.require (CONFIGURING)
     ///   other.ensure (CONFIGURING | STEADY )
     ///
+    /// # Panics
+    ///
+    /// If `source` is not READY (e.g. a clause was started with
+    /// [`CaDiCal::add`] but not terminated) or `destination` is not in the
+    /// `CONFIGURING` state. `CaDiCaL` would otherwise abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn copy(source: &CaDiCal, destination: &mut CaDiCal) {
+        let state = source.state();
+        assert!(
+            (state as i32) & (State::READY as i32) != 0,
+            "copy requires the source solver to be READY, but it is in state {state:?}"
+        );
+        destination.require_state("copy", State::CONFIGURING);
         ffi::copy(&source.solver, &mut destination.solver);
     }
 
