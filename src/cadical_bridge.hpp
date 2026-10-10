@@ -473,18 +473,32 @@ void unphase(std::unique_ptr<Solver> &solver, int lit)
     return solver->unphase(lit);
 }
 
+// If CaDiCaL cannot open the proof file it still installs a proof tracer
+// with a null file and then crashes, so check that the file can be written
+// first.
+bool _trace_proof_to_path(std::unique_ptr<Solver> &solver, rust::String &path)
+{
+    FILE *fptr = fopen(path.c_str(), "w");
+    if (fptr == NULL)
+    {
+        return false;
+    }
+    fclose(fptr);
+    return solver->trace_proof(path.c_str());
+}
+
 bool trace_proof1(std::unique_ptr<Solver> &solver, rust::String file, rust::String name)
 {
     // CaDiCaL keeps writing to a 'FILE *' passed to 'trace_proof' until the
     // trace is closed, but never closes it. Let it open the file by path
     // instead so that it owns (and closes) it. 'name' only appears in messages.
     (void)name;
-    return solver->trace_proof(file.c_str());
+    return _trace_proof_to_path(solver, file);
 }
 
 bool trace_proof2(std::unique_ptr<Solver> &solver, rust::String path)
 {
-    return solver->trace_proof(path.c_str());
+    return _trace_proof_to_path(solver, path);
 }
 
 void flush_proof_trace(std::unique_ptr<Solver> &solver, bool print)
