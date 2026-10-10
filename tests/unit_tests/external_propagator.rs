@@ -116,7 +116,9 @@ impl ExternalPropagator for ForceTwo {
         !self.pending.is_empty()
     }
     fn cb_add_external_clause_lit(&mut self) -> i32 {
-        self.pending.pop().expect("asked for more literals than announced")
+        self.pending
+            .pop()
+            .expect("asked for more literals than announced")
     }
 }
 
