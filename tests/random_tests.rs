@@ -1,15 +1,15 @@
 use cadical_sys::{CaDiCal, ClauseIterator, Learner, Status, Terminator, WitnessIterator};
-use rand::Rng;
+use rand::{Rng, RngExt};
 
 fn get_random_cnf<R: Rng>(rng: &mut R) -> Vec<Vec<i32>> {
-    let n = rng.gen_range(1..10);
+    let n = rng.random_range(1..10);
     let mut cnf = Vec::new();
     for _ in 0..n {
         let mut clause = Vec::new();
-        let m = rng.gen_range(1..10);
+        let m = rng.random_range(1..10);
         for _ in 0..m {
-            let lit = rng.gen_range(1..10);
-            if rng.gen_bool(0.5) {
+            let lit = rng.random_range(1..10);
+            if rng.random_bool(0.5) {
                 clause.push(lit);
             } else {
                 clause.push(-lit);
@@ -47,10 +47,10 @@ impl WitnessIterator for WI {
 fn random_test() {
     const ITERATIONS: usize = 10000;
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for i in 0..ITERATIONS {
-        let seed: u64 = rng.gen();
+        let seed: u64 = rng.random();
         println!("i = {i}\tseed = {seed}");
 
         let cnf = get_random_cnf(&mut rng);
@@ -211,10 +211,10 @@ fn terminator_memory_test() {
         }
     }
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for i in 0..ITERATIONS {
-        let seed: u64 = rng.gen();
+        let seed: u64 = rng.random();
         println!("i = {i}\tseed = {seed}");
 
         let cnf = get_random_cnf(&mut rng);

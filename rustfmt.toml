@@ -1,0 +1,2 @@
+# The 2024 style edition re-sorts imports; adopt it in a separate formatting-only change.
+style_edition = "2021"
