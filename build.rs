@@ -36,13 +36,7 @@ fn compile_cadical() {
     let version = format!("\"{}\"", version.trim());
     build.define("VERSION", version.as_ref());
 
-    if std::env::var("PROFILE").unwrap() == "debug"
-        && std::env::var("CARGO_FEATURE_CPP_DEBUG").is_ok()
-    {
-        build.debug(true);
-    } else {
-        build.debug(false).opt_level(3).define("NDEBUG", None);
-    }
+    build.debug(false).opt_level(3);
 
     // Like CaDiCaL's makefile: every source except the two applications.
     let mut files = vec![];
@@ -78,10 +72,8 @@ fn compile_cadical() {
     println!("cargo:rerun-if-env-changed=CXXSTDLIB");
     println!("cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS");
 
-    if build.get_compiler().is_like_clang() {
-        build.cpp_set_stdlib("c++");
-    }
-
+    // Use the compiler's default C++ standard library, like cxx does for its
+    // own runtime: mixing libc++ and libstdc++ fails to link with clang on Linux.
     // Compile cxx bridge
     build.compile("cadical-rs-bridge");
 

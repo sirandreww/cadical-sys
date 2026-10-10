@@ -35,9 +35,8 @@ using CaDiCaL::ConclusionType;
 // ************************************************************************************************
 
 // Error returned to Rust when a file cannot be opened. The message is built
-// from 'const char *' only: converting between 'rust::String' and
-// 'std::string' needs cxx's runtime to use the same C++ standard library as
-// this file, which is not the case when building with clang on Linux.
+// from 'const char *' only, so that this file does not depend on cxx's runtime
+// being built against the same C++ standard library.
 rust::String _open_error(rust::String &file)
 {
     std::string message = "failed to open file '";
