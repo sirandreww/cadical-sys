@@ -227,17 +227,6 @@ pub mod ffi {
         ///
         pub fn is_decision(solver: &mut UniquePtr<Solver>, lit: i32) -> bool;
 
-        /// Force solve to backtrack to certain decision level. Can be called only
-        /// during 'cb_decide' of a connected External Propagator.
-        /// Invoking in any other time will not have an effect.
-        /// If the call had an effect, the External Propagator will be notified about
-        /// the backtrack via 'notify_backtrack'.
-        ///
-        ///   require (SOLVING)
-        ///   ensure (SOLVING)
-        ///
-        pub fn force_backtrack(solver: &mut UniquePtr<Solver>, new_level: i32);
-
         //------------------------------------------------------------------------
         /// Adds a literal to the constraint clause. Same functionality as 'add'
         /// but the clause only exists for the next call to solve (same lifetime as

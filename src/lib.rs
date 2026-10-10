@@ -949,27 +949,6 @@ impl CaDiCal {
         ffi::is_decision(&mut self.solver, lit)
     }
 
-    /// Force solve to backtrack to certain decision level. Can be called only
-    /// during '`cb_decide`' and '`cb_check_found_model`' of a connected External
-    /// Propagator. Invoking in any other time will trigger a runtime error.
-    /// Otherwise, the External Propagator will be notified about the backtrack
-    /// via '`notify_backtrack`' and the search continues.
-    ///
-    ///   require (SOLVING)
-    ///   ensure (SOLVING)
-    ///
-    /// # Panics
-    ///
-    /// If no external propagator is connected. `CaDiCaL` would otherwise
-    /// abort the process.
-    ///
-    #[inline]
-    #[track_caller]
-    pub fn force_backtrack(&mut self, new_level: i32) {
-        self.require_propagator("force_backtrack");
-        ffi::force_backtrack(&mut self.solver, new_level);
-    }
-
     //------------------------------------------------------------------------
     /// Adds a literal to the constraint clause. Same functionality as 'add'
     /// but the clause only exists for the next call to solve (same lifetime as
