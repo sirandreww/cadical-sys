@@ -3,7 +3,9 @@
 //! Several of these only fail loudly (rather than silently corrupting memory)
 //! when run under valgrind, which CI does in the `Valgrind` job.
 
-use cadical_sys::{CaDiCal, ExternalPropagator, Learner, ProofTracer, Status, Terminator};
+use cadical_sys::{
+    CaDiCal, ExternalPropagator, Learner, ProofTracer, Status, TerminateFlag, Terminator,
+};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -157,6 +159,20 @@ fn replacing_a_callback_drops_the_old_one_and_keeps_solving() {
         second.borrow().calls > 0,
         "the replacement terminator should be called"
     );
+}
+
+#[test]
+fn terminate_flag_stops_solving() {
+    let flag = TerminateFlag::new();
+    let mut solver = CaDiCal::new();
+    solver.connect_terminator(flag.clone());
+    add_pigeonhole(&mut solver, 9);
+
+    flag.terminate();
+    assert_eq!(solver.solve(), Status::UNKNOWN);
+
+    flag.reset();
+    assert!(!flag.is_terminated());
 }
 
 #[test]
