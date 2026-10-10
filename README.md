@@ -25,7 +25,7 @@ A SAT (Boolean Satisfiability) solver is a computational tool that determines wh
 
 ## Features
 
-- Complete binding of `CaDiCaL` C++ API
+- Binding of the public `CaDiCaL` C++ API
 - A safe Rust API built with `cxx`: misuse that would make `CaDiCaL` abort the process panics instead
 - Support for:
   - Adding clauses
@@ -85,7 +85,7 @@ cadical-sys = "0.8"
    solver.configure("plain");
 
    // Set some options
-   solver.set("verbose", 1);
+   solver.set("seed", 42);
 
    // Add complex clauses
    solver.clause3(1, 2, 3);  // x1 OR x2 OR x3
@@ -167,7 +167,9 @@ while it is connected, share it through an `Rc<RefCell<_>>`:
 
 Callbacks run inside the solver's C++ code. A panic in a callback cannot
 unwind through it, so it aborts the process. In particular, don't hold a
-`borrow()` of a shared callback while calling into the solver.
+`borrow()` of a shared callback while calling into the solver. `CaDiCaL` also
+aborts when an external propagator breaks its contract, e.g. returns a literal
+of a variable that is not observed.
 
 To stop a long-running `solve` from another thread, connect a
 `TerminateFlag`:

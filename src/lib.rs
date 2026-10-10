@@ -686,6 +686,10 @@ impl CaDiCal {
     ///   require (`VALID_OR_SOLVING`)
     ///   ensure (`VALID_OR_SOLVING`)
     ///
+    /// Observing a variable that preprocessing or inprocessing has already
+    /// eliminated is not checked and aborts the process. Observe variables
+    /// before solving, or [`CaDiCal::freeze`] them.
+    ///
     /// # Panics
     ///
     /// If no external propagator is connected. `CaDiCaL` would otherwise
@@ -812,6 +816,13 @@ impl CaDiCal {
         ffi::lookahead(&mut self.solver)
     }
 
+    /// Generate cubes for cube-and-conquer, up to the given depth.
+    ///
+    /// Note: `CaDiCaL` 3.0.1 does not map the literals of the generated cubes
+    /// back to the user's variable numbering (`External::generate_cubes`
+    /// discards the mapped values), so after preprocessing has renumbered
+    /// variables the cubes may refer to internal variables.
+    ///
     #[inline]
     pub fn generate_cubes(&mut self, x: i32, min_depth: i32, result_cubes: &mut Vec<i32>) -> i32 {
         ffi::generate_cubes(&mut self.solver, x, min_depth, result_cubes)
@@ -1076,6 +1087,9 @@ impl CaDiCal {
         ffi::prefix(&mut self.solver, verbose_message_prefix.to_owned());
     }
 
+    /// This crate builds `CaDiCaL` with `QUIET`, which removes the options
+    /// `quiet`, `verbose`, `report` and `log`; setting them returns false.
+    ///
     /// Explicit version of setting an option.  If the option `<name>` exists
     /// and `<val>` can be parsed then 'true' is returned.  If the option value
     /// is out of range the actual value is computed as the closest (minimum or
@@ -1287,6 +1301,11 @@ impl CaDiCal {
 
     //------------------------------------------------------------------------
     /// Force termination of 'solve' asynchronously.
+    ///
+    /// Since `solve` borrows the solver mutably, this can only be called
+    /// between `solve` calls, where it makes the next `solve` return
+    /// [`Status::UNKNOWN`]. To stop a running `solve` from another thread,
+    /// connect a [`TerminateFlag`] instead.
     ///
     ///  require (SOLVING | READY)
     ///  ensure (STEADY )           /// actually not immediately (synchronously)
@@ -1751,12 +1770,16 @@ impl CaDiCal {
     ///   ensure (!DELETING)
     ///
     /// print statistics
+    ///
+    /// This crate builds `CaDiCaL` with `QUIET`, so this prints nothing.
     #[inline]
     pub fn statistics(&mut self) {
         ffi::statistics(&mut self.solver);
     }
 
     /// print resource usage (time and memory)
+    ///
+    /// This crate builds `CaDiCaL` with `QUIET`, so this prints nothing.
     #[inline]
     pub fn resources(&mut self) {
         ffi::resources(&mut self.solver);
@@ -1766,6 +1789,8 @@ impl CaDiCal {
     ///   ensure (VALID)
     ///
     /// print current option and value list
+    ///
+    /// This crate builds `CaDiCaL` with `QUIET`, so this prints nothing.
     #[inline]
     pub fn options(&mut self) {
         ffi::options(&mut self.solver);
