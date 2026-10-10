@@ -16,13 +16,10 @@
 
 using CaDiCaL::ClauseIterator;
 using CaDiCaL::ExternalPropagator;
-using CaDiCaL::FileTracer;
 using CaDiCaL::FixedAssignmentListener;
-using CaDiCaL::InternalTracer;
 using CaDiCaL::Learner;
 using CaDiCaL::Solver;
 using CaDiCaL::State;
-using CaDiCaL::StatTracer;
 using CaDiCaL::Status;
 using CaDiCaL::Terminator;
 using CaDiCaL::Tracer;
@@ -118,11 +115,6 @@ void clause5(std::unique_ptr<Solver> &solver, int l1, int l2, int l3, int l4, in
 void clause6(std::unique_ptr<Solver> &solver, const rust::Slice<const int> v)
 {
     return solver->clause(v.data(), v.size());
-}
-
-void clause7(std::unique_ptr<Solver> &solver, const int *ptr, size_t n)
-{
-    return solver->clause(ptr, n);
 }
 
 bool inconsistent(std::unique_ptr<Solver> &solver)
@@ -515,37 +507,12 @@ void connect_proof_tracer1(std::unique_ptr<Solver> &solver, std::unique_ptr<Trac
     return solver->connect_proof_tracer(tracer.get(), antecedents);
 }
 
-void connect_proof_tracer2(std::unique_ptr<Solver> &solver, std::unique_ptr<InternalTracer> &tracer, bool antecedents)
-{
-    return solver->connect_proof_tracer(tracer.get(), antecedents);
-}
-
-void connect_proof_tracer3(std::unique_ptr<Solver> &solver, std::unique_ptr<StatTracer> &tracer, bool antecedents)
-{
-    return solver->connect_proof_tracer(tracer.get(), antecedents);
-}
-
-void connect_proof_tracer4(std::unique_ptr<Solver> &solver, std::unique_ptr<FileTracer> &tracer, bool antecedents)
-{
-    return solver->connect_proof_tracer(tracer.get(), antecedents);
-}
-
 void conclude(std::unique_ptr<Solver> &solver)
 {
     return solver->conclude();
 }
 
 bool disconnect_proof_tracer1(std::unique_ptr<Solver> &solver, std::unique_ptr<Tracer> &tracer)
-{
-    return solver->disconnect_proof_tracer(tracer.get());
-}
-
-bool disconnect_proof_tracer2(std::unique_ptr<Solver> &solver, std::unique_ptr<StatTracer> &tracer)
-{
-    return solver->disconnect_proof_tracer(tracer.get());
-}
-
-bool disconnect_proof_tracer3(std::unique_ptr<Solver> &solver, std::unique_ptr<FileTracer> &tracer)
 {
     return solver->disconnect_proof_tracer(tracer.get());
 }
