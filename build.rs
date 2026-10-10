@@ -1,4 +1,4 @@
-use std::{path::Path, process::Command};
+use std::process::Command;
 
 fn init_submodules() {
     if std::path::Path::new("cadical/src").exists() {
@@ -44,26 +44,26 @@ fn compile_cadical() {
         build.debug(false).opt_level(3).define("NDEBUG", None);
     }
 
+    // Like CaDiCaL's makefile: every source except the two applications.
     let mut files = vec![];
-
+    let mut c_files = vec![];
     let dir_entries = std::fs::read_dir(format!("{CADICAL_PATH}/src")).unwrap();
     for path in dir_entries {
-        let dir_entry = path.unwrap();
-        let path = dir_entry.path();
-        let path_str = path.to_str().unwrap().to_string();
-        if Path::new(&path_str)
-            .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("cpp"))
-            && (!path_str.ends_with("/cadical.cpp"))
-        {
-            files.push(path_str);
+        let path = path.unwrap().path();
+        let is_app = path
+            .file_name()
+            .is_some_and(|name| name == "cadical.cpp" || name == "mobical.cpp");
+        match path.extension().and_then(|ext| ext.to_str()) {
+            Some("cpp") if !is_app => files.push(path),
+            Some("c") => c_files.push(path),
+            _ => {}
         }
     }
     build.files(files.iter());
 
     // Rerun if these change
-    for file in &files {
-        println!("cargo:rerun-if-changed={file}");
+    for file in files.iter().chain(&c_files) {
+        println!("cargo:rerun-if-changed={}", file.display());
     }
     println!("cargo:rerun-if-changed=src/cadical_bridge.hpp");
     println!("cargo:rerun-if-changed=src/lib.rs");
@@ -84,6 +84,14 @@ fn compile_cadical() {
 
     // Compile cxx bridge
     build.compile("cadical-rs-bridge");
+
+    // CaDiCaL 3 also has C sources ('kitten.c'). They are compiled after the
+    // C++ library so that they come later in the link order.
+    cc::Build::new()
+        .files(c_files.iter())
+        .define("NDEBUG", None)
+        .opt_level(3)
+        .compile("cadical-c");
 }
 
 fn main() {

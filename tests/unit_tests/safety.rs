@@ -53,20 +53,20 @@ struct NoopTracer {
 }
 
 impl ProofTracer for NoopTracer {
-    fn add_original_clause(&mut self, _: u64, _: bool, _: &[i32], _: bool) {
+    fn add_original_clause(&mut self, _: i64, _: bool, _: &[i32], _: bool) {
         self.original_clauses += 1;
     }
-    fn add_derived_clause(&mut self, _: u64, _: bool, _: &[i32], _: &[u64]) {}
-    fn delete_clause(&mut self, _: u64, _: bool, _: &[i32]) {}
-    fn weaken_minus(&mut self, _: u64, _: &[i32]) {}
-    fn strengthen(&mut self, _: u64) {}
-    fn finalize_clause(&mut self, _: u64, _: &[i32]) {}
+    fn add_derived_clause(&mut self, _: i64, _: bool, _: i32, _: &[i32], _: &[i64]) {}
+    fn delete_clause(&mut self, _: i64, _: bool, _: &[i32]) {}
+    fn weaken_minus(&mut self, _: i64, _: &[i32]) {}
+    fn strengthen(&mut self, _: i64) {}
+    fn finalize_clause(&mut self, _: i64, _: &[i32]) {}
     fn add_assumption(&mut self, _: i32) {}
     fn add_constraint(&mut self, _: &[i32]) {}
     fn reset_assumptions(&mut self) {}
-    fn add_assumption_clause(&mut self, _: u64, _: &[i32], _: &[u64]) {}
+    fn add_assumption_clause(&mut self, _: i64, _: &[i32], _: &[i64]) {}
     fn conclude_sat(&mut self, _: i32, _: &[i32]) {}
-    fn conclude_unsat(&mut self, _: i32, _: &[u64]) {}
+    fn conclude_unsat(&mut self, _: i32, _: &[i64]) {}
     fn conclude_unknown(&mut self, _: &[i32]) {}
 }
 
@@ -278,6 +278,23 @@ fn connecting_a_proof_tracer_after_adding_clauses_panics() {
     let mut solver = CaDiCal::new();
     solver.clause1(1);
     solver.connect_proof_tracer1(NoopTracer::default(), false);
+}
+
+#[test]
+#[should_panic(expected = "add_observed_var requires a connected external propagator")]
+fn observing_a_variable_without_a_propagator_panics() {
+    let mut solver = CaDiCal::new();
+    solver.add_observed_var(1);
+}
+
+#[test]
+fn observing_a_variable_with_a_propagator() {
+    let mut solver = CaDiCal::new();
+    solver.connect_external_propagator(NoopPropagator);
+    solver.add_observed_var(1);
+    solver.remove_observed_var(1);
+    solver.reset_observed_vars();
+    solver.disconnect_external_propagator();
 }
 
 #[test]

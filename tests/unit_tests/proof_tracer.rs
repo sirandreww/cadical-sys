@@ -5,17 +5,17 @@ use cadical_sys::{CaDiCal, ProofTracer, Status};
 
 /// Test implementation of `ProofTracer` that tracks all method calls
 struct TestProofTracer {
-    original_clauses: Vec<(u64, bool, Vec<i32>, bool)>,
-    derived_clauses: Vec<(u64, bool, Vec<i32>, Vec<u64>)>,
-    deleted_clauses: Vec<(u64, bool, Vec<i32>)>,
-    weakened_clauses: Vec<(u64, Vec<i32>)>,
-    strengthened_clauses: Vec<u64>,
-    finalized_clauses: Vec<(u64, Vec<i32>)>,
+    original_clauses: Vec<(i64, bool, Vec<i32>, bool)>,
+    derived_clauses: Vec<(i64, bool, Vec<i32>, Vec<i64>)>,
+    deleted_clauses: Vec<(i64, bool, Vec<i32>)>,
+    weakened_clauses: Vec<(i64, Vec<i32>)>,
+    strengthened_clauses: Vec<i64>,
+    finalized_clauses: Vec<(i64, Vec<i32>)>,
     assumptions: Vec<i32>,
     constraints: Vec<Vec<i32>>,
-    assumption_clauses: Vec<(u64, Vec<i32>, Vec<u64>)>,
+    assumption_clauses: Vec<(i64, Vec<i32>, Vec<i64>)>,
     sat_conclusions: Vec<(i32, Vec<i32>)>,
-    unsat_conclusions: Vec<(i32, Vec<u64>)>,
+    unsat_conclusions: Vec<(i32, Vec<i64>)>,
     unknown_conclusions: Vec<Vec<i32>>,
     assumption_resets: u32,
 }
@@ -39,27 +39,27 @@ impl TestProofTracer {
         }
     }
 
-    fn get_original_clauses(&self) -> &[(u64, bool, Vec<i32>, bool)] {
+    fn get_original_clauses(&self) -> &[(i64, bool, Vec<i32>, bool)] {
         &self.original_clauses
     }
 
-    fn get_derived_clauses(&self) -> &[(u64, bool, Vec<i32>, Vec<u64>)] {
+    fn get_derived_clauses(&self) -> &[(i64, bool, Vec<i32>, Vec<i64>)] {
         &self.derived_clauses
     }
 
-    fn get_deleted_clauses(&self) -> &[(u64, bool, Vec<i32>)] {
+    fn get_deleted_clauses(&self) -> &[(i64, bool, Vec<i32>)] {
         &self.deleted_clauses
     }
 
-    fn get_weakened_clauses(&self) -> &[(u64, Vec<i32>)] {
+    fn get_weakened_clauses(&self) -> &[(i64, Vec<i32>)] {
         &self.weakened_clauses
     }
 
-    fn get_strengthened_clauses(&self) -> &[u64] {
+    fn get_strengthened_clauses(&self) -> &[i64] {
         &self.strengthened_clauses
     }
 
-    fn get_finalized_clauses(&self) -> &[(u64, Vec<i32>)] {
+    fn get_finalized_clauses(&self) -> &[(i64, Vec<i32>)] {
         &self.finalized_clauses
     }
 
@@ -71,7 +71,7 @@ impl TestProofTracer {
         &self.constraints
     }
 
-    fn get_assumption_clauses(&self) -> &[(u64, Vec<i32>, Vec<u64>)] {
+    fn get_assumption_clauses(&self) -> &[(i64, Vec<i32>, Vec<i64>)] {
         &self.assumption_clauses
     }
 
@@ -79,7 +79,7 @@ impl TestProofTracer {
         &self.sat_conclusions
     }
 
-    fn get_unsat_conclusions(&self) -> &[(i32, Vec<u64>)] {
+    fn get_unsat_conclusions(&self) -> &[(i32, Vec<i64>)] {
         &self.unsat_conclusions
     }
 
@@ -109,35 +109,36 @@ impl TestProofTracer {
 }
 
 impl ProofTracer for TestProofTracer {
-    fn add_original_clause(&mut self, id: u64, redundant: bool, clause: &[i32], restored: bool) {
+    fn add_original_clause(&mut self, id: i64, redundant: bool, clause: &[i32], restored: bool) {
         self.original_clauses
             .push((id, redundant, clause.to_vec(), restored));
     }
 
     fn add_derived_clause(
         &mut self,
-        id: u64,
+        id: i64,
         redundant: bool,
+        _witness: i32,
         clause: &[i32],
-        antecedents: &[u64],
+        antecedents: &[i64],
     ) {
         self.derived_clauses
             .push((id, redundant, clause.to_vec(), antecedents.to_vec()));
     }
 
-    fn delete_clause(&mut self, id: u64, redundant: bool, clause: &[i32]) {
+    fn delete_clause(&mut self, id: i64, redundant: bool, clause: &[i32]) {
         self.deleted_clauses.push((id, redundant, clause.to_vec()));
     }
 
-    fn weaken_minus(&mut self, id: u64, clause: &[i32]) {
+    fn weaken_minus(&mut self, id: i64, clause: &[i32]) {
         self.weakened_clauses.push((id, clause.to_vec()));
     }
 
-    fn strengthen(&mut self, id: u64) {
+    fn strengthen(&mut self, id: i64) {
         self.strengthened_clauses.push(id);
     }
 
-    fn finalize_clause(&mut self, id: u64, clause: &[i32]) {
+    fn finalize_clause(&mut self, id: i64, clause: &[i32]) {
         self.finalized_clauses.push((id, clause.to_vec()));
     }
 
@@ -153,7 +154,7 @@ impl ProofTracer for TestProofTracer {
         self.assumption_resets += 1;
     }
 
-    fn add_assumption_clause(&mut self, id: u64, clause: &[i32], antecedents: &[u64]) {
+    fn add_assumption_clause(&mut self, id: i64, clause: &[i32], antecedents: &[i64]) {
         self.assumption_clauses
             .push((id, clause.to_vec(), antecedents.to_vec()));
     }
@@ -162,7 +163,7 @@ impl ProofTracer for TestProofTracer {
         self.sat_conclusions.push((conclusion_type, model.to_vec()));
     }
 
-    fn conclude_unsat(&mut self, conclusion_type: i32, clause_ids: &[u64]) {
+    fn conclude_unsat(&mut self, conclusion_type: i32, clause_ids: &[i64]) {
         self.unsat_conclusions
             .push((conclusion_type, clause_ids.to_vec()));
     }
@@ -428,13 +429,13 @@ fn validate_original_clauses_consistency(tracer: &TestProofTracer) {
 
 /// Validates that all derived clauses have valid antecedents
 fn validate_derived_clauses_antecedents(tracer: &TestProofTracer) {
-    let original_ids: std::collections::HashSet<u64> = tracer
+    let original_ids: std::collections::HashSet<i64> = tracer
         .get_original_clauses()
         .iter()
         .map(|(id, _, _, _)| *id)
         .collect();
 
-    let derived_ids: std::collections::HashSet<u64> = tracer
+    let derived_ids: std::collections::HashSet<i64> = tracer
         .get_derived_clauses()
         .iter()
         .map(|(id, _, _, _)| *id)
@@ -493,7 +494,7 @@ fn validate_derived_clauses_antecedents(tracer: &TestProofTracer) {
 
 /// Validates that deleted clauses were previously added
 fn validate_deleted_clauses_existence(tracer: &TestProofTracer) {
-    let all_added_ids: std::collections::HashSet<u64> = tracer
+    let all_added_ids: std::collections::HashSet<i64> = tracer
         .get_original_clauses()
         .iter()
         .map(|(id, _, _, _)| *id)
@@ -515,7 +516,7 @@ fn validate_deleted_clauses_existence(tracer: &TestProofTracer) {
 
 /// Validates that weakened clauses were previously added
 fn validate_weakened_clauses_existence(tracer: &TestProofTracer) {
-    let all_added_ids: std::collections::HashSet<u64> = tracer
+    let all_added_ids: std::collections::HashSet<i64> = tracer
         .get_original_clauses()
         .iter()
         .map(|(id, _, _, _)| *id)
@@ -537,7 +538,7 @@ fn validate_weakened_clauses_existence(tracer: &TestProofTracer) {
 
 /// Validates that strengthened clauses were previously added
 fn validate_strengthened_clauses_existence(tracer: &TestProofTracer) {
-    let all_added_ids: std::collections::HashSet<u64> = tracer
+    let all_added_ids: std::collections::HashSet<i64> = tracer
         .get_original_clauses()
         .iter()
         .map(|(id, _, _, _)| *id)
@@ -554,7 +555,7 @@ fn validate_strengthened_clauses_existence(tracer: &TestProofTracer) {
 
 /// Validates that finalized clauses were previously added
 fn validate_finalized_clauses_existence(tracer: &TestProofTracer) {
-    let all_added_ids: std::collections::HashSet<u64> = tracer
+    let all_added_ids: std::collections::HashSet<i64> = tracer
         .get_original_clauses()
         .iter()
         .map(|(id, _, _, _)| *id)
@@ -614,7 +615,7 @@ fn validate_constraints_validity(tracer: &TestProofTracer) {
 
 /// Validates that assumption clauses have valid antecedents
 fn validate_assumption_clauses_antecedents(tracer: &TestProofTracer) {
-    let all_added_ids: std::collections::HashSet<u64> = tracer
+    let all_added_ids: std::collections::HashSet<i64> = tracer
         .get_original_clauses()
         .iter()
         .map(|(id, _, _, _)| *id)
@@ -665,7 +666,7 @@ fn validate_sat_conclusions(tracer: &TestProofTracer) {
 
 /// Validates that UNSAT conclusions reference valid clause IDs
 fn validate_unsat_conclusions(tracer: &TestProofTracer) {
-    let all_added_ids: std::collections::HashSet<u64> = tracer
+    let all_added_ids: std::collections::HashSet<i64> = tracer
         .get_original_clauses()
         .iter()
         .map(|(id, _, _, _)| *id)
@@ -1009,7 +1010,7 @@ fn validate_proof_logical_consistency(tracer: &TestProofTracer) {
     }
 
     // Check that deleted clauses don't appear in other collections after deletion
-    let deleted_ids: std::collections::HashSet<u64> = tracer
+    let deleted_ids: std::collections::HashSet<i64> = tracer
         .get_deleted_clauses()
         .iter()
         .map(|(id, _, _)| *id)
@@ -1090,7 +1091,7 @@ fn validate_proof_ordering(tracer: &TestProofTracer) {
     // Check that original clauses come before derived clauses in the trace
     // This is a simplified check - in practice, the ordering might be more complex
 
-    let original_ids: std::collections::HashSet<u64> = tracer
+    let original_ids: std::collections::HashSet<i64> = tracer
         .get_original_clauses()
         .iter()
         .map(|(id, _, _, _)| *id)

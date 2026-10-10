@@ -170,10 +170,7 @@
 //!    let mut solver = CaDiCal::new();
 //!
 //!    // Reserve variable space
-//!    solver.reserve(1000);
-//!
-//!    // Add observed variables for tracking
-//!    solver.add_observed_var(42);
+//!    solver.resize(1000);
 //!
 //!    // Perform simplification
 //!    let simplify_status = solver.simplify(2);
@@ -277,12 +274,14 @@ pub enum State {
     UNSATISFIED = 64,
     /// during and after deletion (invalid)
     DELETING = 128,
+    /// unknown allows 'implied'
+    INCONCLUSIVE = 256,
 
     /// These combined states are used to check contracts.
-    /// CONFIGURING | STEADY | SATISFIED | UNSATISFIED,
-    READY = 102,
+    /// CONFIGURING | STEADY | SATISFIED | UNSATISFIED | INCONCLUSIVE,
+    READY = 358,
     /// READY | ADDING
-    VALID = 110,
+    VALID = 366,
     /// INITIALIZING | DELETING
     INVALID = 129,
 }
@@ -298,8 +297,9 @@ impl From<i32> for State {
             32 => State::SATISFIED,
             64 => State::UNSATISFIED,
             128 => State::DELETING,
-            102 => State::READY,
-            110 => State::VALID,
+            256 => State::INCONCLUSIVE,
+            358 => State::READY,
+            366 => State::VALID,
             129 => State::INVALID,
             _ => unreachable!(),
         }
@@ -389,7 +389,7 @@ impl CaDiCal {
     }
 
     /// Core functionality as in the IPASIR incremental SAT solver interface.
-    /// (recall 'READY = CONFIGURING | STEADY  | SATISFIED | UNSATISFIED').
+    /// (recall 'READY = CONFIGURING | STEADY  | SATISFIED | UNSATISFIED | INCONCLUSIVE').
     /// Further note that 'lit' is required to be different from '`INT_MIN`' and
     /// different from '0' except for 'add'.
     ///
@@ -469,7 +469,7 @@ impl CaDiCal {
     ///   20 = UNSATISFIABLE
     ///
     ///   require (READY)
-    ///   ensure (STEADY  | SATISFIED | UNSATISFIED)
+    ///   ensure (INCONCLUSIVE  | SATISFIED | UNSATISFIED)
     ///
     /// Note, that while in this call the solver actually transitions to state
     /// 'SOLVING', which however is only visible from a different context,
@@ -807,8 +807,11 @@ impl CaDiCal {
         self.last_external_propagator = Some(external_propagator);
     }
     pub fn disconnect_external_propagator(&mut self) {
-        ffi::disconnect_external_propagator(&mut self.solver);
-        self.last_external_propagator = None;
+        // CaDiCaL 3 aborts when disconnecting without a connected propagator.
+        // `_propagator` is only dropped after CaDiCaL has let go of it.
+        if let Some(_propagator) = self.last_external_propagator.take() {
+            ffi::disconnect_external_propagator(&mut self.solver);
+        }
     }
 
     /// Mark as 'observed' those variables that are relevant to the external
@@ -823,8 +826,15 @@ impl CaDiCal {
     ///   require (`VALID_OR_SOLVING`)
     ///   ensure (`VALID_OR_SOLVING`)
     ///
+    /// # Panics
+    ///
+    /// If no external propagator is connected. `CaDiCaL` would otherwise
+    /// abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn add_observed_var(&mut self, var: i32) {
+        self.require_propagator("add_observed_var");
         ffi::add_observed_var(&mut self.solver, var);
     }
 
@@ -835,8 +845,15 @@ impl CaDiCal {
     ///   require (VALID)
     ///   ensure (VALID)
     ///
+    /// # Panics
+    ///
+    /// If no external propagator is connected. `CaDiCaL` would otherwise
+    /// abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn remove_observed_var(&mut self, var: i32) {
+        self.require_propagator("remove_observed_var");
         ffi::remove_observed_var(&mut self.solver, var);
     }
 
@@ -846,8 +863,15 @@ impl CaDiCal {
     ///   require (VALID)
     ///   ensure (VALID)
     ///
+    /// # Panics
+    ///
+    /// If no external propagator is connected. `CaDiCaL` would otherwise
+    /// abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn reset_observed_vars(&mut self) {
+        self.require_propagator("reset_observed_vars");
         ffi::reset_observed_vars(&mut self.solver);
     }
 
@@ -864,16 +888,23 @@ impl CaDiCal {
     }
 
     /// Force solve to backtrack to certain decision level. Can be called only
-    /// during '`cb_decide`' of a connected External Propagator.
-    /// Invoking in any other time will not have an effect.
-    /// If the call had an effect, the External Propagator will be notified about
-    /// the backtrack via '`notify_backtrack`'.
+    /// during '`cb_decide`' and '`cb_check_found_model`' of a connected External
+    /// Propagator. Invoking in any other time will trigger a runtime error.
+    /// Otherwise, the External Propagator will be notified about the backtrack
+    /// via '`notify_backtrack`' and the search continues.
     ///
     ///   require (SOLVING)
     ///   ensure (SOLVING)
     ///
+    /// # Panics
+    ///
+    /// If no external propagator is connected. `CaDiCaL` would otherwise
+    /// abort the process.
+    ///
     #[inline]
-    pub fn force_backtrack(&mut self, new_level: usize) {
+    #[track_caller]
+    pub fn force_backtrack(&mut self, new_level: i32) {
+        self.require_propagator("force_backtrack");
         ffi::force_backtrack(&mut self.solver, new_level);
     }
 
@@ -966,6 +997,14 @@ impl CaDiCal {
         );
     }
 
+    #[track_caller]
+    fn require_propagator(&self, function: &str) {
+        assert!(
+            self.last_external_propagator.is_some(),
+            "{function} requires a connected external propagator"
+        );
+    }
+
     /// Similar to 'state ()' but using the staddard competition exit codes of
     /// '10' for 'SATISFIABLE', '20' for 'UNSATISFIABLE' and '0' otherwise.
     ///
@@ -1024,8 +1063,15 @@ impl CaDiCal {
     ///   ensure (STEADY )
     ///
     #[inline]
+    pub fn resize(&mut self, min_max_var: i32) {
+        ffi::resize(&mut self.solver, min_max_var);
+    }
+
+    /// Renamed to [`CaDiCal::resize`] in `CaDiCaL` 3.
+    #[deprecated(since = "0.8.0", note = "renamed to `resize` in CaDiCaL 3")]
+    #[inline]
     pub fn reserve(&mut self, min_max_var: i32) {
-        ffi::reserve(&mut self.solver, min_max_var);
+        self.resize(min_max_var);
     }
 
     // pub fn `trace_api_calls(&mut` self, file: String);
@@ -1383,7 +1429,7 @@ impl CaDiCal {
     ) {
         fn add_original_clause<T: ProofTracer>(
             state: *mut u8,
-            id: u64,
+            id: i64,
             redundant: bool,
             clause: &[i32],
             restored: bool,
@@ -1395,35 +1441,36 @@ impl CaDiCal {
 
         fn add_derived_clause<T: ProofTracer>(
             state: *mut u8,
-            id: u64,
+            id: i64,
             redundant: bool,
+            witness: i32,
             clause: &[i32],
-            antecedents: &[u64],
+            antecedents: &[i64],
         ) {
             let ptr: *mut T = state.cast::<T>();
             let t = unsafe { &mut *ptr };
-            t.add_derived_clause(id, redundant, clause, antecedents);
+            t.add_derived_clause(id, redundant, witness, clause, antecedents);
         }
 
-        fn delete_clause<T: ProofTracer>(state: *mut u8, id: u64, redundant: bool, clause: &[i32]) {
+        fn delete_clause<T: ProofTracer>(state: *mut u8, id: i64, redundant: bool, clause: &[i32]) {
             let ptr: *mut T = state.cast::<T>();
             let t = unsafe { &mut *ptr };
             t.delete_clause(id, redundant, clause);
         }
 
-        fn weaken_minus<T: ProofTracer>(state: *mut u8, id: u64, clause: &[i32]) {
+        fn weaken_minus<T: ProofTracer>(state: *mut u8, id: i64, clause: &[i32]) {
             let ptr: *mut T = state.cast::<T>();
             let t = unsafe { &mut *ptr };
             t.weaken_minus(id, clause);
         }
 
-        fn strengthen<T: ProofTracer>(state: *mut u8, id: u64) {
+        fn strengthen<T: ProofTracer>(state: *mut u8, id: i64) {
             let ptr: *mut T = state.cast::<T>();
             let t = unsafe { &mut *ptr };
             t.strengthen(id);
         }
 
-        fn finalize_clause<T: ProofTracer>(state: *mut u8, id: u64, clause: &[i32]) {
+        fn finalize_clause<T: ProofTracer>(state: *mut u8, id: i64, clause: &[i32]) {
             let ptr: *mut T = state.cast::<T>();
             let t = unsafe { &mut *ptr };
             t.finalize_clause(id, clause);
@@ -1449,9 +1496,9 @@ impl CaDiCal {
 
         fn add_assumption_clause<T: ProofTracer>(
             state: *mut u8,
-            id: u64,
+            id: i64,
             clause: &[i32],
-            antecedents: &[u64],
+            antecedents: &[i64],
         ) {
             let ptr: *mut T = state.cast::<T>();
             let t = unsafe { &mut *ptr };
@@ -1467,7 +1514,7 @@ impl CaDiCal {
         fn conclude_unsat<T: ProofTracer>(
             state: *mut u8,
             conclusion_type: i32,
-            clause_ids: &[u64],
+            clause_ids: &[i64],
         ) {
             let ptr: *mut T = state.cast::<T>();
             let t = unsafe { &mut *ptr };
@@ -1603,7 +1650,7 @@ impl CaDiCal {
 
     #[inline]
     pub fn traverse_witnesses_backward<I: WitnessIterator>(&self, i: &mut I) -> bool {
-        fn f<I: WitnessIterator>(state: *mut u8, clause: &[i32], witness: &[i32], id: u64) -> bool {
+        fn f<I: WitnessIterator>(state: *mut u8, clause: &[i32], witness: &[i32], id: i64) -> bool {
             let ptr: *mut I = state.cast::<I>();
             let i = unsafe { &mut *ptr };
             i.witness(clause, witness, id)
@@ -1615,7 +1662,7 @@ impl CaDiCal {
 
     #[inline]
     pub fn traverse_witnesses_forward<I: WitnessIterator>(&self, i: &mut I) -> bool {
-        fn f<I: WitnessIterator>(state: *mut u8, clause: &[i32], witness: &[i32], id: u64) -> bool {
+        fn f<I: WitnessIterator>(state: *mut u8, clause: &[i32], witness: &[i32], id: i64) -> bool {
             let ptr: *mut I = state.cast::<I>();
             let i = unsafe { &mut *ptr };
             i.witness(clause, witness, id)
@@ -1955,7 +2002,7 @@ pub trait ClauseIterator {
 ///
 /// If 'witness' returns false traversal aborts early.
 pub trait WitnessIterator {
-    fn witness(&mut self, clause: &[i32], witness: &[i32], id: u64) -> bool;
+    fn witness(&mut self, clause: &[i32], witness: &[i32], id: i64) -> bool;
 }
 
 /// Trait for proof tracing that allows you to track proof events in real-time.
@@ -1963,22 +2010,30 @@ pub trait WitnessIterator {
 /// with theory clauses to generate eDRAT proofs.
 pub trait ProofTracer {
     /// Called when an original clause is added to the solver
-    fn add_original_clause(&mut self, id: u64, redundant: bool, clause: &[i32], restored: bool);
+    fn add_original_clause(&mut self, id: i64, redundant: bool, clause: &[i32], restored: bool);
 
-    /// Called when a derived clause is learned by the SAT solver
-    fn add_derived_clause(&mut self, id: u64, redundant: bool, clause: &[i32], antecedents: &[u64]);
+    /// Called when a derived clause is learned by the SAT solver. If `witness`
+    /// is not zero the clause is a RAT clause with that witness literal.
+    fn add_derived_clause(
+        &mut self,
+        id: i64,
+        redundant: bool,
+        witness: i32,
+        clause: &[i32],
+        antecedents: &[i64],
+    );
 
     /// Called when a clause is deleted
-    fn delete_clause(&mut self, id: u64, redundant: bool, clause: &[i32]);
+    fn delete_clause(&mut self, id: i64, redundant: bool, clause: &[i32]);
 
     /// Called when a clause is weakened (might be restored later)
-    fn weaken_minus(&mut self, id: u64, clause: &[i32]);
+    fn weaken_minus(&mut self, id: i64, clause: &[i32]);
 
     /// Called when a clause is strengthened
-    fn strengthen(&mut self, id: u64);
+    fn strengthen(&mut self, id: i64);
 
     /// Called when a clause is finalized
-    fn finalize_clause(&mut self, id: u64, clause: &[i32]);
+    fn finalize_clause(&mut self, id: i64, clause: &[i32]);
 
     /// Called when an assumption is added
     fn add_assumption(&mut self, lit: i32);
@@ -1990,13 +2045,13 @@ pub trait ProofTracer {
     fn reset_assumptions(&mut self);
 
     /// Called when an assumption clause is added (negation of failing assumptions)
-    fn add_assumption_clause(&mut self, id: u64, clause: &[i32], antecedents: &[u64]);
+    fn add_assumption_clause(&mut self, id: i64, clause: &[i32], antecedents: &[i64]);
 
     /// Called when the solver concludes SAT
     fn conclude_sat(&mut self, conclusion_type: i32, model: &[i32]);
 
     /// Called when the solver concludes UNSAT
-    fn conclude_unsat(&mut self, conclusion_type: i32, clause_ids: &[u64]);
+    fn conclude_unsat(&mut self, conclusion_type: i32, clause_ids: &[i64]);
 
     /// Called when the solver concludes UNKNOWN
     fn conclude_unknown(&mut self, trail: &[i32]);
@@ -2067,30 +2122,31 @@ impl<T: ExternalPropagator> ExternalPropagator for Rc<RefCell<T>> {
 }
 
 impl<T: ProofTracer> ProofTracer for Rc<RefCell<T>> {
-    fn add_original_clause(&mut self, id: u64, redundant: bool, clause: &[i32], restored: bool) {
+    fn add_original_clause(&mut self, id: i64, redundant: bool, clause: &[i32], restored: bool) {
         self.borrow_mut()
             .add_original_clause(id, redundant, clause, restored);
     }
     fn add_derived_clause(
         &mut self,
-        id: u64,
+        id: i64,
         redundant: bool,
+        witness: i32,
         clause: &[i32],
-        antecedents: &[u64],
+        antecedents: &[i64],
     ) {
         self.borrow_mut()
-            .add_derived_clause(id, redundant, clause, antecedents);
+            .add_derived_clause(id, redundant, witness, clause, antecedents);
     }
-    fn delete_clause(&mut self, id: u64, redundant: bool, clause: &[i32]) {
+    fn delete_clause(&mut self, id: i64, redundant: bool, clause: &[i32]) {
         self.borrow_mut().delete_clause(id, redundant, clause);
     }
-    fn weaken_minus(&mut self, id: u64, clause: &[i32]) {
+    fn weaken_minus(&mut self, id: i64, clause: &[i32]) {
         self.borrow_mut().weaken_minus(id, clause);
     }
-    fn strengthen(&mut self, id: u64) {
+    fn strengthen(&mut self, id: i64) {
         self.borrow_mut().strengthen(id);
     }
-    fn finalize_clause(&mut self, id: u64, clause: &[i32]) {
+    fn finalize_clause(&mut self, id: i64, clause: &[i32]) {
         self.borrow_mut().finalize_clause(id, clause);
     }
     fn add_assumption(&mut self, lit: i32) {
@@ -2102,14 +2158,14 @@ impl<T: ProofTracer> ProofTracer for Rc<RefCell<T>> {
     fn reset_assumptions(&mut self) {
         self.borrow_mut().reset_assumptions();
     }
-    fn add_assumption_clause(&mut self, id: u64, clause: &[i32], antecedents: &[u64]) {
+    fn add_assumption_clause(&mut self, id: i64, clause: &[i32], antecedents: &[i64]) {
         self.borrow_mut()
             .add_assumption_clause(id, clause, antecedents);
     }
     fn conclude_sat(&mut self, conclusion_type: i32, model: &[i32]) {
         self.borrow_mut().conclude_sat(conclusion_type, model);
     }
-    fn conclude_unsat(&mut self, conclusion_type: i32, clause_ids: &[u64]) {
+    fn conclude_unsat(&mut self, conclusion_type: i32, clause_ids: &[i64]) {
         self.borrow_mut()
             .conclude_unsat(conclusion_type, clause_ids);
     }
