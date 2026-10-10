@@ -130,6 +130,39 @@
 //!    }
 //! ```
 //!
+//! ## Callbacks
+//!
+//! The solver takes ownership of connected callbacks (terminators, learners,
+//! listeners, external propagators and proof tracers). To inspect a callback
+//! while it is connected, share it through an `Rc<RefCell<_>>`:
+//!
+//! ```rust
+//!    use std::cell::RefCell;
+//!    use std::rc::Rc;
+//!    use cadical_sys::{CaDiCal, Learner};
+//!
+//!    #[derive(Default)]
+//!    struct CountLearned(usize);
+//!
+//!    impl Learner for CountLearned {
+//!        fn learning(&mut self, _size: i32) -> bool {
+//!            self.0 += 1;
+//!            false
+//!        }
+//!        fn learn(&mut self, _lit: i32) {}
+//!    }
+//!
+//!    let learner = Rc::new(RefCell::new(CountLearned::default()));
+//!    let mut solver = CaDiCal::new();
+//!    solver.connect_learner(Rc::clone(&learner));
+//!    solver.clause2(1, 2);
+//!    solver.clause2(-1, 2);
+//!    solver.clause2(1, -2);
+//!    solver.clause2(-1, -2);
+//!    solver.solve();
+//!    println!("learned {} clauses", learner.borrow().0);
+//! ```
+//!
 //! ## Demonstrating advanced solver interactions
 //! ```rust
 //!    use cadical_sys::CaDiCal;
@@ -181,7 +214,10 @@
 //! Special thanks to Armin Biere for developing and maintaining `CaDiCaL`.
 
 use bridge::ffi;
+use cxx::memory::UniquePtrTarget;
 use cxx::UniquePtr;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 /// This module contains the FFI bindings to the `CaDiCaL` SAT solver.
 /// Some functions are unsafe due to necessity.
@@ -256,20 +292,65 @@ impl From<i32> for State {
     }
 }
 
-pub struct CaDiCal {
-    solver: UniquePtr<ffi::Solver>,
-    last_terminator: Option<UniquePtr<ffi::Terminator>>,
-    last_learner: Option<UniquePtr<ffi::Learner>>,
-    last_external_propagator: Option<UniquePtr<ffi::ExternalPropagator>>,
-    last_fixed_listener: Option<UniquePtr<ffi::FixedAssignmentListener>>,
-    last_tracer: Option<UniquePtr<ffi::Tracer>>,
+/// A Rust callback object together with the C++ wrapper that calls into it.
+///
+/// The C++ wrapper only holds a raw pointer to the callback, so the callback
+/// is boxed and owned here rather than borrowed from the caller. This is what
+/// guarantees the callback outlives every call the solver makes into it.
+struct Connected<W: UniquePtrTarget> {
+    wrapper: UniquePtr<W>,
+    callback: *mut u8,
+    drop_callback: unsafe fn(*mut u8),
 }
 
+impl<W: UniquePtrTarget> Connected<W> {
+    /// Boxes `callback` and builds its C++ wrapper from a pointer to it.
+    fn new<T>(callback: T, make_wrapper: impl FnOnce(*mut u8) -> UniquePtr<W>) -> Self {
+        unsafe fn drop_box<T>(ptr: *mut u8) {
+            drop(unsafe { Box::from_raw(ptr.cast::<T>()) });
+        }
+        let callback = Box::into_raw(Box::new(callback)).cast::<u8>();
+        Self {
+            wrapper: make_wrapper(callback),
+            callback,
+            drop_callback: drop_box::<T>,
+        }
+    }
+}
+
+impl<W: UniquePtrTarget> Drop for Connected<W> {
+    fn drop(&mut self) {
+        // Free the wrapper before the callback it points to.
+        drop(std::mem::replace(&mut self.wrapper, UniquePtr::null()));
+        unsafe { (self.drop_callback)(self.callback) };
+    }
+}
+
+pub struct CaDiCal {
+    // Declared first so the solver is destroyed before the callbacks it may call.
+    solver: UniquePtr<ffi::Solver>,
+    last_terminator: Option<Connected<ffi::Terminator>>,
+    last_learner: Option<Connected<ffi::Learner>>,
+    last_external_propagator: Option<Connected<ffi::ExternalPropagator>>,
+    last_fixed_listener: Option<Connected<ffi::FixedAssignmentListener>>,
+    last_tracer: Option<Connected<ffi::Tracer>>,
+}
+
+/// Cloning copies the formula and options (see [`CaDiCal::copy`]) but not any
+/// connected callbacks; the clone starts with none connected.
 impl Clone for CaDiCal {
     fn clone(&self) -> Self {
         let mut r = Self::new();
         Self::copy(self, &mut r);
         r
+    }
+}
+
+impl Drop for CaDiCal {
+    fn drop(&mut self) {
+        // CaDiCaL deletes tracers that are still connected when it is destroyed,
+        // but ours is owned (and deleted) by `last_tracer`.
+        self.disconnect_proof_tracer1();
     }
 }
 
@@ -459,18 +540,35 @@ impl CaDiCal {
     ///   require (VALID)
     ///   ensure (VALID)
     ///
+    /// The solver takes ownership of `terminator` and drops it when it is
+    /// disconnected, replaced, or the solver is dropped. To read its state
+    /// afterwards, pass an `Rc<RefCell<_>>` and keep a clone of the `Rc`.
+    ///
+    /// The callback must be `'static`, so it cannot borrow from a value that
+    /// might be dropped while the solver still calls it:
+    ///
+    /// ```compile_fail,E0597
+    /// # use cadical_sys::{CaDiCal, Terminator};
+    /// # struct Cb<'a>(&'a mut u32);
+    /// # impl Terminator for Cb<'_> { fn terminated(&mut self) -> bool { false } }
+    /// let mut solver = CaDiCal::new();
+    /// let mut calls = 0;
+    /// solver.connect_terminator(Cb(&mut calls)); // error: `calls` does not live long enough
+    /// ```
+    ///
     #[inline]
-    #[allow(clippy::missing_panics_doc)]
-    pub fn connect_terminator<'a, 'b: 'a, T: Terminator>(&'a mut self, terminator: &'b mut T) {
+    pub fn connect_terminator<T: Terminator + 'static>(&mut self, terminator: T) {
         fn f<T: Terminator>(state: *mut u8) -> bool {
             let ptr: *mut T = state.cast::<T>();
             let i = unsafe { &mut *ptr };
             i.terminated()
         }
-        let terminator =
-            unsafe { ffi::new_terminator(std::ptr::from_mut(terminator).cast::<u8>(), f::<T>) };
+        let mut terminator = Connected::new(terminator, |state| unsafe {
+            ffi::new_terminator(state, f::<T>)
+        });
+        ffi::connect_terminator(&mut self.solver, &mut terminator.wrapper);
+        // Only drop the previous terminator once the solver no longer points to it.
         self.last_terminator = Some(terminator);
-        ffi::connect_terminator(&mut self.solver, self.last_terminator.as_mut().unwrap());
     }
 
     #[inline]
@@ -484,9 +582,24 @@ impl CaDiCal {
     ///   require (VALID)
     ///   ensure (VALID)
     ///
+    /// The solver takes ownership of `learner` and drops it when it is
+    /// disconnected, replaced, or the solver is dropped. To read its state
+    /// afterwards, pass an `Rc<RefCell<_>>` and keep a clone of the `Rc`.
+    ///
+    /// The callback must be `'static`, so it cannot borrow from a value that
+    /// might be dropped while the solver still calls it:
+    ///
+    /// ```compile_fail,E0597
+    /// # use cadical_sys::{CaDiCal, Learner};
+    /// # struct Cb<'a>(&'a mut u32);
+    /// # impl Learner for Cb<'_> { fn learning(&mut self, _: i32) -> bool { false } fn learn(&mut self, _: i32) {} }
+    /// let mut solver = CaDiCal::new();
+    /// let mut calls = 0;
+    /// solver.connect_learner(Cb(&mut calls)); // error: `calls` does not live long enough
+    /// ```
+    ///
     #[inline]
-    #[allow(clippy::missing_panics_doc)]
-    pub fn connect_learner<'a, 'b: 'a, T: Learner>(&'a mut self, learner: &'b mut T) {
+    pub fn connect_learner<T: Learner + 'static>(&mut self, learner: T) {
         fn learning<T: Learner>(state: *mut u8, size: i32) -> bool {
             let ptr: *mut T = state.cast::<T>();
             let i = unsafe { &mut *ptr };
@@ -499,15 +612,11 @@ impl CaDiCal {
             i.learn(lit);
         }
 
-        let learner = unsafe {
-            ffi::new_learner(
-                std::ptr::from_mut(learner).cast::<u8>(),
-                learning::<T>,
-                learn::<T>,
-            )
-        };
+        let mut learner = Connected::new(learner, |state| unsafe {
+            ffi::new_learner(state, learning::<T>, learn::<T>)
+        });
+        ffi::connect_learner(&mut self.solver, &mut learner.wrapper);
         self.last_learner = Some(learner);
-        ffi::connect_learner(&mut self.solver, self.last_learner.as_mut().unwrap());
     }
 
     #[inline]
@@ -521,10 +630,25 @@ impl CaDiCal {
     ///   require (VALID)
     ///   ensure (VALID)
     ///
-    #[allow(clippy::missing_panics_doc)]
-    pub fn connect_fixed_listener<'a, 'b: 'a, F: FixedAssignmentListener>(
-        &'a mut self,
-        fixed_listener: &'b mut F,
+    /// The solver takes ownership of `fixed_listener` and drops it when it is
+    /// disconnected, replaced, or the solver is dropped. To read its state
+    /// afterwards, pass an `Rc<RefCell<_>>` and keep a clone of the `Rc`.
+    ///
+    /// The callback must be `'static`, so it cannot borrow from a value that
+    /// might be dropped while the solver still calls it:
+    ///
+    /// ```compile_fail,E0597
+    /// # use cadical_sys::{CaDiCal, FixedAssignmentListener};
+    /// # struct Cb<'a>(&'a mut u32);
+    /// # impl FixedAssignmentListener for Cb<'_> { fn notify_fixed_assignment(&mut self, _: i32) {} }
+    /// let mut solver = CaDiCal::new();
+    /// let mut calls = 0;
+    /// solver.connect_fixed_listener(Cb(&mut calls)); // error: `calls` does not live long enough
+    /// ```
+    ///
+    pub fn connect_fixed_listener<F: FixedAssignmentListener + 'static>(
+        &mut self,
+        fixed_listener: F,
     ) {
         fn notify_fixed_assignment<F: FixedAssignmentListener>(state: *mut u8, lit: i32) {
             let ptr: *mut F = state.cast::<F>();
@@ -532,16 +656,11 @@ impl CaDiCal {
             i.notify_fixed_assignment(lit);
         }
 
-        let s = std::ptr::from_mut(fixed_listener).cast::<u8>();
-
-        let listener =
-            unsafe { ffi::new_fixed_assignment_listener(s, notify_fixed_assignment::<F>) };
-
-        // Store the listener in self to prevent it from being dropped
+        let mut listener = Connected::new(fixed_listener, |state| unsafe {
+            ffi::new_fixed_assignment_listener(state, notify_fixed_assignment::<F>)
+        });
+        ffi::connect_fixed_listener(&mut self.solver, &mut listener.wrapper);
         self.last_fixed_listener = Some(listener);
-
-        // Use the stored listener
-        ffi::connect_fixed_listener(&mut self.solver, self.last_fixed_listener.as_mut().unwrap());
     }
 
     #[inline]
@@ -560,10 +679,13 @@ impl CaDiCal {
     ///   require (VALID)
     ///   ensure (VALID)
     ///
-    #[allow(clippy::missing_panics_doc)]
-    pub fn connect_external_propagator<'a, 'b: 'a, T: ExternalPropagator>(
-        &'a mut self,
-        propagator: &'b mut T,
+    /// The solver takes ownership of `propagator` and drops it when it is
+    /// disconnected, replaced, or the solver is dropped. To read its state
+    /// afterwards, pass an `Rc<RefCell<_>>` and keep a clone of the `Rc`.
+    ///
+    pub fn connect_external_propagator<T: ExternalPropagator + 'static>(
+        &mut self,
+        mut propagator: T,
     ) {
         fn notify_assignment<T: ExternalPropagator>(state: *mut u8, x: &[i32]) {
             let ptr: *mut T = state.cast::<T>();
@@ -613,9 +735,9 @@ impl CaDiCal {
         let is_lazy = propagator.is_lazy();
         let are_reasons_forgettable = propagator.are_reasons_forgettable();
 
-        let external_propagator = unsafe {
+        let mut external_propagator = Connected::new(propagator, |state| unsafe {
             ffi::new_external_propagator(
-                std::ptr::from_mut(propagator).cast::<u8>(),
+                state,
                 is_lazy,
                 are_reasons_forgettable,
                 notify_assignment::<T>,
@@ -628,13 +750,9 @@ impl CaDiCal {
                 cb_has_external_clause::<T>,
                 cb_add_external_clause_lit::<T>,
             )
-        };
-
+        });
+        ffi::connect_external_propagator(&mut self.solver, &mut external_propagator.wrapper);
         self.last_external_propagator = Some(external_propagator);
-        ffi::connect_external_propagator(
-            &mut self.solver,
-            self.last_external_propagator.as_mut().unwrap(),
-        );
     }
     pub fn disconnect_external_propagator(&mut self) {
         ffi::disconnect_external_propagator(&mut self.solver);
@@ -1164,19 +1282,25 @@ impl CaDiCal {
         ffi::close_proof_trace(&mut self.solver, print);
     }
 
-    // /// Enables clausal proof tracing with or without antecedents using
-    // /// the Tracer interface defined in 'tracer.hpp'
-    // ///
-    // /// InternalTracer, StatTracer and FileTracer for internal use
-    // ///
-    // ///   require (CONFIGURING)
-    // ///   ensure (CONFIGURING)
-    // ///
-    #[allow(clippy::missing_panics_doc)]
+    /// Enables clausal proof tracing with or without antecedents using
+    /// the Tracer interface defined in 'tracer.hpp'.
+    ///
+    /// `CaDiCaL`'s built-in `FileTracer` and `StatTracer` are not exposed
+    /// directly; use [`CaDiCal::trace_proof1`] or [`CaDiCal::trace_proof2`]
+    /// to write a proof file.
+    ///
+    ///   require (CONFIGURING)
+    ///   ensure (CONFIGURING)
+    ///
+    /// The solver takes ownership of `tracer` and drops it when it is
+    /// disconnected, replaced, or the solver is dropped. To read its state
+    /// afterwards, pass an `Rc<RefCell<_>>` and keep a clone of the `Rc`.
+    /// Connecting a tracer disconnects any tracer connected earlier.
+    ///
     #[allow(clippy::too_many_lines)]
-    pub fn connect_proof_tracer1<'a, 'b: 'a, T: ProofTracer>(
-        &'a mut self,
-        tracer: &'b mut T,
+    pub fn connect_proof_tracer1<T: ProofTracer + 'static>(
+        &mut self,
+        tracer: T,
         antecedents: bool,
     ) {
         fn add_original_clause<T: ProofTracer>(
@@ -1278,9 +1402,13 @@ impl CaDiCal {
             t.conclude_unknown(trail);
         }
 
-        let tracer_ptr = unsafe {
+        // Unlike the other callbacks, CaDiCaL keeps every connected tracer, so
+        // the previous one must be disconnected before it is dropped.
+        self.disconnect_proof_tracer1();
+
+        let mut tracer = Connected::new(tracer, |state| unsafe {
             ffi::new_tracer(
-                std::ptr::from_mut(tracer).cast::<u8>(),
+                state,
                 add_original_clause::<T>,
                 add_derived_clause::<T>,
                 delete_clause::<T>,
@@ -1295,33 +1423,10 @@ impl CaDiCal {
                 conclude_unsat::<T>,
                 conclude_unknown::<T>,
             )
-        };
-
-        // Store the tracer to prevent it from being dropped
-        self.last_tracer = Some(tracer_ptr);
-
-        // Connect the tracer to the solver
-        ffi::connect_proof_tracer1(
-            &mut self.solver,
-            self.last_tracer.as_mut().unwrap(),
-            antecedents,
-        );
+        });
+        ffi::connect_proof_tracer1(&mut self.solver, &mut tracer.wrapper, antecedents);
+        self.last_tracer = Some(tracer);
     }
-
-    // pub fn connect_proof_tracer2(
-    //     &mut self,
-    //     tracer: &mut UniquePtr<InternalTracer>,
-    //     antecedents: bool,
-    // ) {
-    //     todo!()
-    // }
-    // pub fn connect_proof_tracer3(&mut self, tracer: &mut UniquePtr<StatTracer>, antecedents: bool) {
-    //     todo!()
-    // }
-
-    // pub fn connect_proof_tracer4(&mut self, tracer: &mut UniquePtr<FileTracer>, antecedents: bool) {
-    //     todo!()
-    // }
 
     /// Triggers the conclusion of incremental proofs.
     /// if the solver is SATISFIED it will trigger extend ()
@@ -1342,24 +1447,18 @@ impl CaDiCal {
         ffi::conclude(&mut self.solver);
     }
 
-    // /// Disconnect proof tracer. If this is not done before deleting
-    // /// the tracer will be deleted. Returns true if successful.
-    // ///
-    // ///   require (VALID)
-    // ///   ensure (VALID)
-    // ///
+    /// Disconnect the proof tracer connected with
+    /// [`CaDiCal::connect_proof_tracer1`] and drop it. Does nothing if no
+    /// tracer is connected.
+    ///
+    ///   require (VALID)
+    ///   ensure (VALID)
+    ///
     pub fn disconnect_proof_tracer1(&mut self) {
-        if let Some(tracer) = &mut self.last_tracer {
-            ffi::disconnect_proof_tracer1(&mut self.solver, tracer);
+        if let Some(mut tracer) = self.last_tracer.take() {
+            ffi::disconnect_proof_tracer1(&mut self.solver, &mut tracer.wrapper);
         }
-        self.last_tracer = None;
     }
-    // pub fn disconnect_proof_tracer2(&mut self, tracer: &mut UniquePtr<StatTracer>) -> bool {
-    //     todo!()
-    // }
-    // pub fn disconnect_proof_tracer3(&mut self, tracer: &mut UniquePtr<FileTracer>) -> bool {
-    //     todo!()
-    // }
 
     /// print usage information for long options
     #[inline]
@@ -1739,4 +1838,120 @@ pub trait ProofTracer {
 
     /// Called when the solver concludes UNKNOWN
     fn conclude_unknown(&mut self, trail: &[i32]);
+}
+
+// ************************************************************************************************
+// Shared callbacks
+// ************************************************************************************************
+
+// The solver owns its callbacks, so these impls let the caller keep an `Rc` to
+// a callback and inspect it while it is connected (e.g. after `solve`).
+
+impl<T: Terminator> Terminator for Rc<RefCell<T>> {
+    fn terminated(&mut self) -> bool {
+        self.borrow_mut().terminated()
+    }
+}
+
+impl<T: Learner> Learner for Rc<RefCell<T>> {
+    fn learning(&mut self, size: i32) -> bool {
+        self.borrow_mut().learning(size)
+    }
+    fn learn(&mut self, lit: i32) {
+        self.borrow_mut().learn(lit);
+    }
+}
+
+impl<T: FixedAssignmentListener> FixedAssignmentListener for Rc<RefCell<T>> {
+    fn notify_fixed_assignment(&mut self, lit: i32) {
+        self.borrow_mut().notify_fixed_assignment(lit);
+    }
+}
+
+impl<T: ExternalPropagator> ExternalPropagator for Rc<RefCell<T>> {
+    fn is_lazy(&mut self) -> bool {
+        self.borrow_mut().is_lazy()
+    }
+    fn are_reasons_forgettable(&mut self) -> bool {
+        self.borrow_mut().are_reasons_forgettable()
+    }
+    fn notify_assignment(&mut self, lits: &[i32]) {
+        self.borrow_mut().notify_assignment(lits);
+    }
+    fn notify_new_decision_level(&mut self) {
+        self.borrow_mut().notify_new_decision_level();
+    }
+    fn notify_backtrack(&mut self, new_level: usize) {
+        self.borrow_mut().notify_backtrack(new_level);
+    }
+    fn cb_check_found_model(&mut self, model: &[i32]) -> bool {
+        self.borrow_mut().cb_check_found_model(model)
+    }
+    fn cb_decide(&mut self) -> i32 {
+        self.borrow_mut().cb_decide()
+    }
+    fn cb_propagate(&mut self) -> i32 {
+        self.borrow_mut().cb_propagate()
+    }
+    fn cb_add_reason_clause_lit(&mut self, propagated_lit: i32) -> i32 {
+        self.borrow_mut().cb_add_reason_clause_lit(propagated_lit)
+    }
+    fn cb_has_external_clause(&mut self, is_forgettable: &mut bool) -> bool {
+        self.borrow_mut().cb_has_external_clause(is_forgettable)
+    }
+    fn cb_add_external_clause_lit(&mut self) -> i32 {
+        self.borrow_mut().cb_add_external_clause_lit()
+    }
+}
+
+impl<T: ProofTracer> ProofTracer for Rc<RefCell<T>> {
+    fn add_original_clause(&mut self, id: u64, redundant: bool, clause: &[i32], restored: bool) {
+        self.borrow_mut()
+            .add_original_clause(id, redundant, clause, restored);
+    }
+    fn add_derived_clause(
+        &mut self,
+        id: u64,
+        redundant: bool,
+        clause: &[i32],
+        antecedents: &[u64],
+    ) {
+        self.borrow_mut()
+            .add_derived_clause(id, redundant, clause, antecedents);
+    }
+    fn delete_clause(&mut self, id: u64, redundant: bool, clause: &[i32]) {
+        self.borrow_mut().delete_clause(id, redundant, clause);
+    }
+    fn weaken_minus(&mut self, id: u64, clause: &[i32]) {
+        self.borrow_mut().weaken_minus(id, clause);
+    }
+    fn strengthen(&mut self, id: u64) {
+        self.borrow_mut().strengthen(id);
+    }
+    fn finalize_clause(&mut self, id: u64, clause: &[i32]) {
+        self.borrow_mut().finalize_clause(id, clause);
+    }
+    fn add_assumption(&mut self, lit: i32) {
+        self.borrow_mut().add_assumption(lit);
+    }
+    fn add_constraint(&mut self, clause: &[i32]) {
+        self.borrow_mut().add_constraint(clause);
+    }
+    fn reset_assumptions(&mut self) {
+        self.borrow_mut().reset_assumptions();
+    }
+    fn add_assumption_clause(&mut self, id: u64, clause: &[i32], antecedents: &[u64]) {
+        self.borrow_mut()
+            .add_assumption_clause(id, clause, antecedents);
+    }
+    fn conclude_sat(&mut self, conclusion_type: i32, model: &[i32]) {
+        self.borrow_mut().conclude_sat(conclusion_type, model);
+    }
+    fn conclude_unsat(&mut self, conclusion_type: i32, clause_ids: &[u64]) {
+        self.borrow_mut()
+            .conclude_unsat(conclusion_type, clause_ids);
+    }
+    fn conclude_unknown(&mut self, trail: &[i32]) {
+        self.borrow_mut().conclude_unknown(trail);
+    }
 }

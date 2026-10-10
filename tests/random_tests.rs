@@ -230,13 +230,8 @@ fn terminator_memory_test() {
             solver.clause6(clause);
         }
 
-        let mut t = Term { v: vec![7; 1000] };
-        let t_ref = &mut t;
-        solver.connect_terminator(t_ref);
-
-        let mut l = L { v: Vec::new() };
-        let l_ref = &mut l;
-        solver.connect_learner(l_ref);
+        solver.connect_terminator(Term { v: vec![7; 1000] });
+        solver.connect_learner(L { v: Vec::new() });
 
         solver.simplify(3);
 

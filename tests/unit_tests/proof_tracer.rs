@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use cadical_sys::{CaDiCal, ProofTracer, Status};
 
 /// Test implementation of `ProofTracer` that tracks all method calls
@@ -192,16 +195,16 @@ fn add_unit_clauses_cnf(solver: &mut CaDiCal) {
 #[test]
 fn test_proof_tracer_connect_and_disconnect() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     solver.disconnect_proof_tracer1();
 }
 
 #[test]
 fn test_proof_tracer_flow_solve_after_connect_disconnect() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     solver.disconnect_proof_tracer1();
 
     // Add clauses after disconnecting the tracer
@@ -214,10 +217,10 @@ fn test_proof_tracer_flow_solve_after_connect_disconnect() {
 #[test]
 fn test_proof_tracer_sat_case() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect tracer before adding any clauses
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     add_sat_test_cnf(&mut solver);
 
     // Just test that we can add clauses without crashing
@@ -233,10 +236,10 @@ fn test_proof_tracer_sat_case() {
 #[test]
 fn test_proof_tracer_unsat_case() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect tracer before adding any clauses
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     add_unsat_test_cnf(&mut solver);
 
     let result = solver.solve();
@@ -250,10 +253,10 @@ fn test_proof_tracer_unsat_case() {
 #[test]
 fn test_proof_tracer_unit_clauses() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect tracer before adding any clauses
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     add_unit_clauses_cnf(&mut solver);
 
     let result = solver.solve();
@@ -267,10 +270,10 @@ fn test_proof_tracer_unit_clauses() {
 #[test]
 fn test_proof_tracer_disconnect_prevents_notifications() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect and immediately disconnect tracer
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     solver.disconnect_proof_tracer1();
 
     // Add clauses after disconnecting
@@ -285,12 +288,12 @@ fn test_proof_tracer_disconnect_prevents_notifications() {
 #[test]
 fn test_proof_tracer_reconnect() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect, disconnect, then reconnect before adding clauses
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     solver.disconnect_proof_tracer1();
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
 
     add_sat_test_cnf(&mut solver);
     let result = solver.solve();
@@ -304,10 +307,10 @@ fn test_proof_tracer_reconnect() {
 #[test]
 fn test_proof_tracer_empty_cnf() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect tracer before solving
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
 
     // Solve with no clauses (empty CNF)
     let result = solver.solve();
@@ -321,10 +324,10 @@ fn test_proof_tracer_empty_cnf() {
 #[test]
 fn test_proof_tracer_with_assumptions() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect tracer before adding clauses
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     add_sat_test_cnf(&mut solver);
 
     // Add assumptions
@@ -338,26 +341,26 @@ fn test_proof_tracer_with_assumptions() {
 #[test]
 fn test_proof_tracer_antecedents_parameter() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Test with antecedents = true, connect before adding clauses
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     add_sat_test_cnf(&mut solver);
     let result = solver.solve();
     assert_eq!(result, Status::SATISFIABLE);
 
     // Clear and test with antecedents = false
-    proof_tracer.clear();
+    proof_tracer.borrow_mut().clear();
     solver.disconnect_proof_tracer1();
 }
 
 #[test]
 fn test_proof_tracer_multiple_solves() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect tracer before adding clauses
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
 
     // First solve
     add_sat_test_cnf(&mut solver);
@@ -369,10 +372,10 @@ fn test_proof_tracer_multiple_solves() {
 #[test]
 fn test_proof_tracer_reset_assumptions() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect tracer before adding clauses
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     add_sat_test_cnf(&mut solver);
 
     // Add assumptions and solve
@@ -722,10 +725,10 @@ fn validate_proof_trace(tracer: &TestProofTracer) {
 #[test]
 fn test_proof_tracer_validation_sat_case() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect tracer before adding clauses
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     add_sat_test_cnf(&mut solver);
 
     let result = solver.solve();
@@ -733,16 +736,16 @@ fn test_proof_tracer_validation_sat_case() {
     solver.disconnect_proof_tracer1();
 
     // Validate the proof trace
-    validate_proof_trace(&proof_tracer);
+    validate_proof_trace(&proof_tracer.borrow());
 }
 
 #[test]
 fn test_proof_tracer_validation_unsat_case() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect tracer before adding clauses
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     add_unsat_test_cnf(&mut solver);
 
     let result = solver.solve();
@@ -750,16 +753,16 @@ fn test_proof_tracer_validation_unsat_case() {
     solver.disconnect_proof_tracer1();
 
     // Validate the proof trace
-    validate_proof_trace(&proof_tracer);
+    validate_proof_trace(&proof_tracer.borrow());
 }
 
 #[test]
 fn test_proof_tracer_validation_unit_clauses() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect tracer before adding clauses
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     add_unit_clauses_cnf(&mut solver);
 
     let result = solver.solve();
@@ -767,16 +770,16 @@ fn test_proof_tracer_validation_unit_clauses() {
     solver.disconnect_proof_tracer1();
 
     // Validate the proof trace
-    validate_proof_trace(&proof_tracer);
+    validate_proof_trace(&proof_tracer.borrow());
 }
 
 #[test]
 fn test_proof_tracer_validation_with_assumptions() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect tracer before adding clauses
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     add_sat_test_cnf(&mut solver);
 
     // Add assumptions
@@ -787,16 +790,16 @@ fn test_proof_tracer_validation_with_assumptions() {
     solver.disconnect_proof_tracer1();
 
     // Validate the proof trace
-    validate_proof_trace(&proof_tracer);
+    validate_proof_trace(&proof_tracer.borrow());
 }
 
 #[test]
 fn test_proof_tracer_validation_complex_cnf() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect tracer before adding clauses
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
 
     // Add a more complex CNF that should generate derived clauses
     solver.clause6(&[2, 4, -6]);
@@ -807,21 +810,21 @@ fn test_proof_tracer_validation_complex_cnf() {
     solver.clause6(&[-3]);
 
     let result = solver.solve();
-    assert!(result == Status::UNSATISFIABLE);
+    assert_eq!(result, Status::UNSATISFIABLE);
     solver.disconnect_proof_tracer1();
 
     // Validate the proof trace
-    validate_proof_trace(&proof_tracer);
+    validate_proof_trace(&proof_tracer.borrow());
 }
 
 // testing pigeonhole 4
 #[test]
 fn test_proof_tracer_validation_pigeonhole() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect tracer before adding clauses
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
 
     solver.clause6(&[1, 2, 3, 4]);
     solver.clause6(&[5, 6, 7, 8]);
@@ -875,19 +878,19 @@ fn test_proof_tracer_validation_pigeonhole() {
     solver.disconnect_proof_tracer1();
 
     // pigeonhole so theres going to be a lot of derived clauses
-    assert!(proof_tracer.get_derived_clauses().len() > 5);
+    assert!(proof_tracer.borrow().get_derived_clauses().len() > 5);
 
     // Validate the proof trace
-    validate_proof_trace(&proof_tracer);
+    validate_proof_trace(&proof_tracer.borrow());
 }
 
 #[test]
 fn test_proof_tracer_validation_empty_cnf() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect tracer before solving
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
 
     // Solve with no clauses (empty CNF)
     let result = solver.solve();
@@ -895,16 +898,16 @@ fn test_proof_tracer_validation_empty_cnf() {
     solver.disconnect_proof_tracer1();
 
     // Validate the proof trace (should be mostly empty)
-    validate_proof_trace(&proof_tracer);
+    validate_proof_trace(&proof_tracer.borrow());
 }
 
 #[test]
 fn test_proof_tracer_validation_multiple_solves() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect tracer before adding clauses
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
 
     // First solve
     add_sat_test_cnf(&mut solver);
@@ -922,16 +925,16 @@ fn test_proof_tracer_validation_multiple_solves() {
     solver.disconnect_proof_tracer1();
 
     // Validate the proof trace
-    validate_proof_trace(&proof_tracer);
+    validate_proof_trace(&proof_tracer.borrow());
 }
 
 #[test]
 fn test_proof_tracer_validation_assumption_resets() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect tracer before adding clauses
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     add_sat_test_cnf(&mut solver);
 
     // Add assumptions and solve
@@ -946,11 +949,11 @@ fn test_proof_tracer_validation_assumption_resets() {
     solver.disconnect_proof_tracer1();
 
     // Validate the proof trace
-    validate_proof_trace(&proof_tracer);
+    validate_proof_trace(&proof_tracer.borrow());
 
     // Check that assumption reset was recorded
     assert!(
-        proof_tracer.get_assumption_resets() > 0,
+        proof_tracer.borrow().get_assumption_resets() > 0,
         "Assumption reset should be recorded in proof trace"
     );
 }
@@ -959,27 +962,27 @@ fn test_proof_tracer_validation_assumption_resets() {
 fn test_proof_tracer_validation_antecedents_parameter() {
     // Test with antecedents = true
     let mut solver1 = CaDiCal::new();
-    let mut proof_tracer1 = TestProofTracer::new();
-    solver1.connect_proof_tracer1(&mut proof_tracer1, true);
+    let proof_tracer1 = Rc::new(RefCell::new(TestProofTracer::new()));
+    solver1.connect_proof_tracer1(Rc::clone(&proof_tracer1), true);
     add_sat_test_cnf(&mut solver1);
     let result = solver1.solve();
     assert_eq!(result, Status::SATISFIABLE);
     solver1.disconnect_proof_tracer1();
 
     // Validate the proof trace
-    validate_proof_trace(&proof_tracer1);
+    validate_proof_trace(&proof_tracer1.borrow());
 
     // Test with antecedents = false using a new solver
     let mut solver2 = CaDiCal::new();
-    let mut proof_tracer2 = TestProofTracer::new();
-    solver2.connect_proof_tracer1(&mut proof_tracer2, false);
+    let proof_tracer2 = Rc::new(RefCell::new(TestProofTracer::new()));
+    solver2.connect_proof_tracer1(Rc::clone(&proof_tracer2), false);
     add_sat_test_cnf(&mut solver2);
     let result = solver2.solve();
     assert_eq!(result, Status::SATISFIABLE);
     solver2.disconnect_proof_tracer1();
 
     // Validate the proof trace
-    validate_proof_trace(&proof_tracer2);
+    validate_proof_trace(&proof_tracer2.borrow());
 }
 
 // ============================================================================
@@ -1155,9 +1158,9 @@ fn validate_proof_trace_comprehensive(tracer: &TestProofTracer) {
 #[test]
 fn test_proof_tracer_validation_comprehensive_sat() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     add_sat_test_cnf(&mut solver);
 
     let result = solver.solve();
@@ -1165,15 +1168,15 @@ fn test_proof_tracer_validation_comprehensive_sat() {
     solver.disconnect_proof_tracer1();
 
     // Run comprehensive validation
-    validate_proof_trace_comprehensive(&proof_tracer);
+    validate_proof_trace_comprehensive(&proof_tracer.borrow());
 }
 
 #[test]
 fn test_proof_tracer_validation_comprehensive_unsat() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     add_unsat_test_cnf(&mut solver);
 
     let result = solver.solve();
@@ -1181,15 +1184,15 @@ fn test_proof_tracer_validation_comprehensive_unsat() {
     solver.disconnect_proof_tracer1();
 
     // Run comprehensive validation
-    validate_proof_trace_comprehensive(&proof_tracer);
+    validate_proof_trace_comprehensive(&proof_tracer.borrow());
 }
 
 #[test]
 fn test_proof_tracer_validation_large_cnf() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
 
     // Add a larger CNF to test memory efficiency
     for i in 1..=20 {
@@ -1202,15 +1205,15 @@ fn test_proof_tracer_validation_large_cnf() {
     solver.disconnect_proof_tracer1();
 
     // Run comprehensive validation
-    validate_proof_trace_comprehensive(&proof_tracer);
+    validate_proof_trace_comprehensive(&proof_tracer.borrow());
 }
 
 #[test]
 fn test_proof_tracer_validation_mixed_operations() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
 
     // Add clauses
     add_sat_test_cnf(&mut solver);
@@ -1237,25 +1240,25 @@ fn test_proof_tracer_validation_mixed_operations() {
     solver.disconnect_proof_tracer1();
 
     // Run comprehensive validation
-    validate_proof_trace_comprehensive(&proof_tracer);
+    validate_proof_trace_comprehensive(&proof_tracer.borrow());
 }
 
 #[test]
 fn test_proof_tracer_validation_edge_case_empty_trace() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
     // Connect and immediately disconnect without adding clauses
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     solver.disconnect_proof_tracer1();
 }
 
 #[test]
 fn test_proof_tracer_validation_edge_case_single_clause() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
 
     // Add only one clause
     solver.clause6(&[1]);
@@ -1265,15 +1268,15 @@ fn test_proof_tracer_validation_edge_case_single_clause() {
     solver.disconnect_proof_tracer1();
 
     // Run comprehensive validation
-    validate_proof_trace_comprehensive(&proof_tracer);
+    validate_proof_trace_comprehensive(&proof_tracer.borrow());
 }
 
 #[test]
 fn test_proof_tracer_validation_edge_case_contradictory_clauses() {
     let mut solver = CaDiCal::new();
-    let mut proof_tracer = TestProofTracer::new();
+    let proof_tracer = Rc::new(RefCell::new(TestProofTracer::new()));
 
-    solver.connect_proof_tracer1(&mut proof_tracer, true);
+    solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
 
     // Add contradictory clauses
     solver.clause6(&[1, 2]);
@@ -1286,5 +1289,5 @@ fn test_proof_tracer_validation_edge_case_contradictory_clauses() {
     solver.disconnect_proof_tracer1();
 
     // Run comprehensive validation
-    validate_proof_trace_comprehensive(&proof_tracer);
+    validate_proof_trace_comprehensive(&proof_tracer.borrow());
 }

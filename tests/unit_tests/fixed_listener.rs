@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use cadical_sys::{CaDiCal, FixedAssignmentListener, Status};
 
 struct MyFixedListener {
@@ -47,16 +50,16 @@ fn add_fixed_assignment_cnf(solver: &mut CaDiCal) {
 #[test]
 fn test_fixed_listener_connect_and_disconnect() {
     let mut solver = CaDiCal::new();
-    let mut fixed_listener = MyFixedListener::new();
-    solver.connect_fixed_listener(&mut fixed_listener);
+    let fixed_listener = Rc::new(RefCell::new(MyFixedListener::new()));
+    solver.connect_fixed_listener(Rc::clone(&fixed_listener));
     solver.disconnect_fixed_listener();
 }
 
 #[test]
 fn test_fixed_listener_flow_solve_after_connect_disconnect() {
     let mut solver = CaDiCal::new();
-    let mut fixed_listener = MyFixedListener::new();
-    solver.connect_fixed_listener(&mut fixed_listener);
+    let fixed_listener = Rc::new(RefCell::new(MyFixedListener::new()));
+    solver.connect_fixed_listener(Rc::clone(&fixed_listener));
     solver.disconnect_fixed_listener();
 
     add_sat_test_cnf(&mut solver);
@@ -67,14 +70,14 @@ fn test_fixed_listener_flow_solve_after_connect_disconnect() {
 #[test]
 fn test_fixed_listener_solve_after_connect() {
     let mut solver = CaDiCal::new();
-    let mut fixed_listener = MyFixedListener::new();
+    let fixed_listener = Rc::new(RefCell::new(MyFixedListener::new()));
 
-    solver.connect_fixed_listener(&mut fixed_listener);
+    solver.connect_fixed_listener(Rc::clone(&fixed_listener));
 
     add_sat_test_cnf(&mut solver);
     let result = solver.solve();
     assert_eq!(result, Status::SATISFIABLE);
-    let assignments = fixed_listener.get_fixed_assignments();
+    let assignments = fixed_listener.borrow().get_fixed_assignments().to_vec();
     assert!(
         assignments.is_empty(),
         "There should not be any fixed literals"
@@ -84,16 +87,16 @@ fn test_fixed_listener_solve_after_connect() {
 #[test]
 fn test_fixed_listener_receives_assignments() {
     let mut solver = CaDiCal::new();
-    let mut fixed_listener = MyFixedListener::new();
+    let fixed_listener = Rc::new(RefCell::new(MyFixedListener::new()));
 
-    solver.connect_fixed_listener(&mut fixed_listener);
+    solver.connect_fixed_listener(Rc::clone(&fixed_listener));
     add_fixed_assignment_cnf(&mut solver);
 
     let result = solver.solve();
     assert_eq!(result, Status::UNSATISFIABLE);
 
     // Check that the listener received some fixed assignments
-    let assignments = fixed_listener.get_fixed_assignments();
+    let assignments = fixed_listener.borrow().get_fixed_assignments().to_vec();
     assert!(
         !assignments.is_empty(),
         "Fixed listener should receive assignments"
@@ -103,15 +106,15 @@ fn test_fixed_listener_receives_assignments() {
 #[test]
 fn test_fixed_listener_unsat_case() {
     let mut solver = CaDiCal::new();
-    let mut fixed_listener = MyFixedListener::new();
+    let fixed_listener = Rc::new(RefCell::new(MyFixedListener::new()));
 
-    solver.connect_fixed_listener(&mut fixed_listener);
+    solver.connect_fixed_listener(Rc::clone(&fixed_listener));
     add_unsat_test_cnf(&mut solver);
 
     let result = solver.solve();
     assert_eq!(result, Status::UNSATISFIABLE);
 
-    let assignments = fixed_listener.get_fixed_assignments();
+    let assignments = fixed_listener.borrow().get_fixed_assignments().to_vec();
     assert!(
         assignments.contains(&1),
         "Should have fixed assignment for literal 1"
@@ -125,9 +128,9 @@ fn test_fixed_listener_unsat_case() {
 #[test]
 fn test_fixed_listener_disconnect_prevents_notifications() {
     let mut solver = CaDiCal::new();
-    let mut fixed_listener = MyFixedListener::new();
+    let fixed_listener = Rc::new(RefCell::new(MyFixedListener::new()));
 
-    solver.connect_fixed_listener(&mut fixed_listener);
+    solver.connect_fixed_listener(Rc::clone(&fixed_listener));
     solver.disconnect_fixed_listener();
 
     add_fixed_assignment_cnf(&mut solver);
@@ -135,7 +138,7 @@ fn test_fixed_listener_disconnect_prevents_notifications() {
     assert_eq!(result, Status::UNSATISFIABLE);
 
     // After disconnection, no assignments should be received
-    let assignments = fixed_listener.get_fixed_assignments();
+    let assignments = fixed_listener.borrow().get_fixed_assignments().to_vec();
     assert!(
         assignments.is_empty(),
         "Disconnected listener should not receive assignments"
@@ -145,19 +148,19 @@ fn test_fixed_listener_disconnect_prevents_notifications() {
 #[test]
 fn test_fixed_listener_reconnect() {
     let mut solver = CaDiCal::new();
-    let mut fixed_listener = MyFixedListener::new();
+    let fixed_listener = Rc::new(RefCell::new(MyFixedListener::new()));
 
     // Connect, disconnect, then reconnect
-    solver.connect_fixed_listener(&mut fixed_listener);
+    solver.connect_fixed_listener(Rc::clone(&fixed_listener));
     solver.disconnect_fixed_listener();
-    solver.connect_fixed_listener(&mut fixed_listener);
+    solver.connect_fixed_listener(Rc::clone(&fixed_listener));
 
     add_fixed_assignment_cnf(&mut solver);
     let result = solver.solve();
     assert_eq!(result, Status::UNSATISFIABLE);
 
     // Should receive assignments after reconnection
-    let assignments = fixed_listener.get_fixed_assignments();
+    let assignments = fixed_listener.borrow().get_fixed_assignments().to_vec();
     assert!(
         !assignments.is_empty(),
         "Reconnected listener should receive assignments"
@@ -167,16 +170,16 @@ fn test_fixed_listener_reconnect() {
 #[test]
 fn test_fixed_listener_empty_cnf() {
     let mut solver = CaDiCal::new();
-    let mut fixed_listener = MyFixedListener::new();
+    let fixed_listener = Rc::new(RefCell::new(MyFixedListener::new()));
 
-    solver.connect_fixed_listener(&mut fixed_listener);
+    solver.connect_fixed_listener(Rc::clone(&fixed_listener));
 
     // Solve with no clauses (empty CNF)
     let result = solver.solve();
     assert_eq!(result, Status::SATISFIABLE);
 
     // Empty CNF should not produce fixed assignments
-    let assignments = fixed_listener.get_fixed_assignments();
+    let assignments = fixed_listener.borrow().get_fixed_assignments().to_vec();
     assert!(
         assignments.is_empty(),
         "Empty CNF should not produce fixed assignments"
@@ -186,9 +189,9 @@ fn test_fixed_listener_empty_cnf() {
 #[test]
 fn test_fixed_listener_unit_clauses() {
     let mut solver = CaDiCal::new();
-    let mut fixed_listener = MyFixedListener::new();
+    let fixed_listener = Rc::new(RefCell::new(MyFixedListener::new()));
 
-    solver.connect_fixed_listener(&mut fixed_listener);
+    solver.connect_fixed_listener(Rc::clone(&fixed_listener));
 
     // Add unit clauses which should result in fixed assignments
     solver.clause6(&[1]);
@@ -197,7 +200,7 @@ fn test_fixed_listener_unit_clauses() {
     let result = solver.solve();
     assert_eq!(result, Status::SATISFIABLE);
 
-    let assignments = fixed_listener.get_fixed_assignments();
+    let assignments = fixed_listener.borrow().get_fixed_assignments().to_vec();
     assert!(
         !assignments.is_empty(),
         "Unit clauses should produce fixed assignments"
