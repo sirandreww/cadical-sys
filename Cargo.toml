@@ -1,6 +1,6 @@
 [package]
 name = "cadical-sys"
-description = "Almost complete safe and unsafe bindings for the CaDiCal SAT solver. Made using the cxx crate and then wrapped in a safe 1 to 1 API."
+description = "Safe bindings for the CaDiCaL SAT solver, made with the cxx crate and wrapped in a 1 to 1 API."
 version = "0.7.0"
 edition = "2024"
 license = "MIT"

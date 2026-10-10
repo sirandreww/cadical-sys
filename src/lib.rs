@@ -221,9 +221,10 @@ use std::rc::Rc;
 #[doc = include_str!("../README.md")]
 struct ReadmeDoctests;
 
-/// This module contains the FFI bindings to the `CaDiCaL` SAT solver.
-/// Some functions are unsafe due to necessity.
-pub mod bridge;
+// The raw FFI bindings. They are private: they take `UniquePtr`s that may be
+// null and C++ objects whose lifetimes they cannot check, so exposing them as
+// safe functions would let safe code cause undefined behaviour.
+mod bridge;
 
 /// The C++ shim reports success as an empty string and failure as an error message.
 fn into_result(message: String) -> Result<(), String> {

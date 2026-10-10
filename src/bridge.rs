@@ -19,9 +19,6 @@ pub mod ffi {
         type FixedAssignmentListener;
         type ExternalPropagator;
         type Tracer;
-        type InternalTracer;
-        type StatTracer;
-        type FileTracer;
 
         /// Constructor and basic operations
         #[must_use]
@@ -57,12 +54,6 @@ pub mod ffi {
         pub fn clause6(solver: &mut UniquePtr<Solver>, v: &[i32]);
 
         /// Function that makes clause from any slice of integers.
-        ///
-        /// # Safety
-        ///
-        /// This function must be called with a valid pointer to a slice of integers.
-        #[allow(clippy::missing_safety_doc)]
-        pub unsafe fn clause7(solver: &mut UniquePtr<Solver>, ptr: *const i32, n: usize);
 
         /// This function can be used to check if the formula is already
         /// inconsistent (contains the empty clause or was proven to be
@@ -625,29 +616,12 @@ pub mod ffi {
         /// Enables clausal proof tracing with or without antecedents using
         /// the Tracer interface defined in 'tracer.hpp'
         ///
-        /// InternalTracer, StatTracer and FileTracer for internal use
-        ///
         ///   require (CONFIGURING)
         ///   ensure (CONFIGURING)
         ///
         pub fn connect_proof_tracer1(
             solver: &mut UniquePtr<Solver>,
             tracer: &mut UniquePtr<Tracer>,
-            antecedents: bool,
-        );
-        pub fn connect_proof_tracer2(
-            solver: &mut UniquePtr<Solver>,
-            tracer: &mut UniquePtr<InternalTracer>,
-            antecedents: bool,
-        );
-        pub fn connect_proof_tracer3(
-            solver: &mut UniquePtr<Solver>,
-            tracer: &mut UniquePtr<StatTracer>,
-            antecedents: bool,
-        );
-        pub fn connect_proof_tracer4(
-            solver: &mut UniquePtr<Solver>,
-            tracer: &mut UniquePtr<FileTracer>,
             antecedents: bool,
         );
 
@@ -676,14 +650,6 @@ pub mod ffi {
         pub fn disconnect_proof_tracer1(
             solver: &mut UniquePtr<Solver>,
             tracer: &mut UniquePtr<Tracer>,
-        ) -> bool;
-        pub fn disconnect_proof_tracer2(
-            solver: &mut UniquePtr<Solver>,
-            tracer: &mut UniquePtr<StatTracer>,
-        ) -> bool;
-        pub fn disconnect_proof_tracer3(
-            solver: &mut UniquePtr<Solver>,
-            tracer: &mut UniquePtr<FileTracer>,
         ) -> bool;
 
         /// print usage information for long options
