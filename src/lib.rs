@@ -374,6 +374,8 @@ pub struct CaDiCal {
     last_external_propagator: Option<Connected<ffi::ExternalPropagator>>,
     last_fixed_listener: Option<Connected<ffi::FixedAssignmentListener>>,
     last_tracer: Option<Connected<ffi::Tracer>>,
+    // Whether the last proof file opened with `trace_proof*` is still open.
+    proof_file_open: bool,
 }
 
 /// Cloning copies the formula and options (see [`CaDiCal::copy`]) but not any
@@ -412,6 +414,7 @@ impl CaDiCal {
             last_external_propagator: None,
             last_fixed_listener: None,
             last_tracer: None,
+            proof_file_open: false,
         }
     }
 
@@ -1038,6 +1041,14 @@ impl CaDiCal {
     }
 
     #[track_caller]
+    fn require_proof_file(&self, function: &str) {
+        assert!(
+            self.proof_file_open,
+            "{function} requires an open proof file (see trace_proof1 and trace_proof2)"
+        );
+    }
+
+    #[track_caller]
     fn require_propagator(&self, function: &str) {
         assert!(
             self.last_external_propagator.is_some(),
@@ -1488,16 +1499,38 @@ impl CaDiCal {
     ///   require (CONFIGURING)
     ///   ensure (CONFIGURING)
     ///
-    /// Write DRAT proof.
+    /// Write DRAT proof. `name` is only used in messages. As with
+    /// [`CaDiCal::trace_proof2`], a `.gz`, `.bz2`, `.xz` or `.7z` suffix
+    /// compresses the proof through an external program.
+    ///
+    /// # Panics
+    ///
+    /// If the solver is not in the `CONFIGURING` state. `CaDiCaL` would
+    /// otherwise abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn trace_proof1(&mut self, file: &str, name: &str) -> bool {
-        ffi::trace_proof1(&mut self.solver, file.to_owned(), name.to_owned())
+        self.require_state("trace_proof1", State::CONFIGURING);
+        let opened = ffi::trace_proof1(&mut self.solver, file.to_owned(), name.to_owned());
+        self.proof_file_open |= opened;
+        opened
     }
 
     /// Open & write proof.
+    ///
+    /// # Panics
+    ///
+    /// If the solver is not in the `CONFIGURING` state. `CaDiCaL` would
+    /// otherwise abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn trace_proof2(&mut self, path: &str) -> bool {
-        ffi::trace_proof2(&mut self.solver, path.to_owned())
+        self.require_state("trace_proof2", State::CONFIGURING);
+        let opened = ffi::trace_proof2(&mut self.solver, path.to_owned());
+        self.proof_file_open |= opened;
+        opened
     }
 
     /// Flushing the proof trace file eventually calls 'fflush' on the actual
@@ -1516,8 +1549,15 @@ impl CaDiCal {
     ///   require (VALID)
     ///   ensure (VALID)
     ///
+    /// # Panics
+    ///
+    /// If no proof file is open (see [`CaDiCal::trace_proof2`]). `CaDiCaL`
+    /// would otherwise abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn flush_proof_trace(&mut self, print: bool) {
+        self.require_proof_file("flush_proof_trace");
         ffi::flush_proof_trace(&mut self.solver, print);
     }
 
@@ -1534,8 +1574,16 @@ impl CaDiCal {
     ///   require (VALID)
     ///   ensure (VALID)
     ///
+    /// # Panics
+    ///
+    /// If no proof file is open, including when it was already closed.
+    /// `CaDiCaL` would otherwise abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn close_proof_trace(&mut self, print: bool) {
+        self.require_proof_file("close_proof_trace");
+        self.proof_file_open = false;
         ffi::close_proof_trace(&mut self.solver, print);
     }
 

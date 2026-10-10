@@ -464,6 +464,31 @@ fn build_to_unwritable_path_is_an_error() {
 }
 
 #[test]
+fn tracing_a_proof_to_an_unwritable_path_returns_false() {
+    // CaDiCaL used to crash on a proof file it could not open.
+    let mut solver = CaDiCal::new();
+    assert!(!solver.trace_proof2("./tests/no_such_dir/proof.drat"));
+    assert!(!solver.trace_proof1("./tests/no_such_dir/proof.drat", "proof"));
+}
+
+#[test]
+#[should_panic(expected = "close_proof_trace requires an open proof file")]
+fn closing_a_proof_trace_twice_panics() {
+    let path = temp_path("closed_twice.drat");
+    let mut solver = CaDiCal::new();
+    assert!(solver.trace_proof2(&path));
+    solver.close_proof_trace(false);
+    let _ = std::fs::remove_file(&path);
+    solver.close_proof_trace(false);
+}
+
+#[test]
+#[should_panic(expected = "flush_proof_trace requires an open proof file")]
+fn flushing_without_a_proof_trace_panics() {
+    CaDiCal::new().flush_proof_trace(false);
+}
+
+#[test]
 fn trace_proof1_writes_the_whole_proof() {
     // `trace_proof1` used to close the file right after handing it to CaDiCaL,
     // which then kept writing the proof to the closed `FILE *`.
