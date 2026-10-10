@@ -41,7 +41,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cadical-sys = "0.7"
+cadical-sys = "0.8"
 ```
 
 ## Usage Examples
