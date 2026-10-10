@@ -401,7 +401,9 @@ fn setting_an_option_after_adding_clauses_panics() {
 fn verbosity_can_be_set_at_any_time() {
     let mut solver = CaDiCal::new();
     solver.clause1(1);
-    assert!(solver.set("verbose", 0));
+    // Must not panic. The return value is false because this crate builds
+    // CaDiCaL with QUIET, which removes the verbosity options.
+    let _ = solver.set("verbose", 0);
 }
 
 #[test]
