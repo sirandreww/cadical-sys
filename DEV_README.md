@@ -1,12 +1,7 @@
-# Generating README
+# README
 
-We  use a cargo package to make the readme from the docs, to update the readme run the following command:
-
-```
-cargo readme > README.md
-```
-
-For more information: https://crates.io/crates/cargo-readme
+`README.md` is also the crate documentation (`#![doc = include_str!("../README.md")]`
+in `src/lib.rs`), so its code examples run as doctests. Edit it directly.
 
 # Viewing the DOCS
 
