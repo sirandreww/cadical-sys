@@ -235,6 +235,25 @@ fn into_result(message: String) -> Result<(), String> {
     }
 }
 
+/// Literals must be non-zero and not `i32::MIN`; `CaDiCaL` aborts the process
+/// otherwise, so the safe API panics first.
+#[track_caller]
+fn require_valid_lit(function: &str, lit: i32) {
+    assert!(
+        lit != 0 && lit != i32::MIN,
+        "{function} called with invalid literal {lit}"
+    );
+}
+
+/// Like [`require_valid_lit`] for functions where zero terminates a clause.
+#[track_caller]
+fn require_valid_lit_or_zero(function: &str, lit: i32) {
+    assert!(
+        lit != i32::MIN,
+        "{function} called with invalid literal {lit}"
+    );
+}
+
 /// The SAT competition standardized the exit code of SAT solvers to the
 /// following which then is also used return code for 'solve' functions.
 /// In the following example we use those constants for brevity though.
@@ -341,6 +360,12 @@ impl<W: UniquePtrTarget> Drop for Connected<W> {
     }
 }
 
+/// A `CaDiCaL` solver.
+///
+/// Methods that take a literal panic if it is `0` or `i32::MIN` (except
+/// [`CaDiCal::add`] and [`CaDiCal::constrain`], where `0` ends the clause), and
+/// methods with a state precondition panic when it does not hold. `CaDiCaL`
+/// itself would abort the whole process in both cases.
 pub struct CaDiCal {
     // Declared first so the solver is destroyed before the callbacks it may call.
     solver: UniquePtr<ffi::Solver>,
@@ -403,7 +428,9 @@ impl CaDiCal {
     ///   if (!lit) ensure (STEADY )        and thus READY
     ///
     #[inline]
+    #[track_caller]
     pub fn add(&mut self, lit: i32) {
+        require_valid_lit_or_zero("add", lit);
         ffi::add(&mut self.solver, lit);
     }
 
@@ -414,32 +441,54 @@ impl CaDiCal {
     ///   ensure (STEADY )
     ///
     #[inline]
+    #[track_caller]
     pub fn clause1(&mut self, l1: i32) {
+        require_valid_lit("clause1", l1);
         ffi::clause1(&mut self.solver, l1);
     }
 
     #[inline]
+    #[track_caller]
     pub fn clause2(&mut self, l1: i32, l2: i32) {
+        for lit in [l1, l2] {
+            require_valid_lit("clause2", lit);
+        }
         ffi::clause2(&mut self.solver, l1, l2);
     }
 
     #[inline]
+    #[track_caller]
     pub fn clause3(&mut self, l1: i32, l2: i32, l3: i32) {
+        for lit in [l1, l2, l3] {
+            require_valid_lit("clause3", lit);
+        }
         ffi::clause3(&mut self.solver, l1, l2, l3);
     }
 
     #[inline]
+    #[track_caller]
     pub fn clause4(&mut self, l1: i32, l2: i32, l3: i32, l4: i32) {
+        for lit in [l1, l2, l3, l4] {
+            require_valid_lit("clause4", lit);
+        }
         ffi::clause4(&mut self.solver, l1, l2, l3, l4);
     }
 
     #[inline]
+    #[track_caller]
     pub fn clause5(&mut self, l1: i32, l2: i32, l3: i32, l4: i32, l5: i32) {
+        for lit in [l1, l2, l3, l4, l5] {
+            require_valid_lit("clause5", lit);
+        }
         ffi::clause5(&mut self.solver, l1, l2, l3, l4, l5);
     }
 
     #[inline]
+    #[track_caller]
     pub fn clause6(&mut self, v: &[i32]) {
+        for &lit in v {
+            require_valid_lit("clause6", lit);
+        }
         ffi::clause6(&mut self.solver, v);
     }
 
@@ -459,7 +508,9 @@ impl CaDiCal {
     ///   ensure (STEADY )
     ///
     #[inline]
+    #[track_caller]
     pub fn assume(&mut self, lit: i32) {
+        require_valid_lit("assume", lit);
         ffi::assume(&mut self.solver, lit);
     }
 
@@ -835,6 +886,7 @@ impl CaDiCal {
     #[inline]
     #[track_caller]
     pub fn add_observed_var(&mut self, var: i32) {
+        require_valid_lit("add_observed_var", var);
         self.require_propagator("add_observed_var");
         ffi::add_observed_var(&mut self.solver, var);
     }
@@ -854,6 +906,7 @@ impl CaDiCal {
     #[inline]
     #[track_caller]
     pub fn remove_observed_var(&mut self, var: i32) {
+        require_valid_lit("remove_observed_var", var);
         self.require_propagator("remove_observed_var");
         ffi::remove_observed_var(&mut self.solver, var);
     }
@@ -884,7 +937,9 @@ impl CaDiCal {
     ///   ensure (`VALID_OR_SOLVING`)
     ///
     #[inline]
+    #[track_caller]
     pub fn is_decision(&mut self, lit: i32) -> bool {
+        require_valid_lit("is_decision", lit);
         ffi::is_decision(&mut self.solver, lit)
     }
 
@@ -924,7 +979,9 @@ impl CaDiCal {
     ///   READY if (!lit) && !`adding_clause` ensure (STEADY ) // and thus READY
     ///
     #[inline]
+    #[track_caller]
     pub fn constrain(&mut self, lit: i32) {
+        require_valid_lit_or_zero("constrain", lit);
         ffi::constrain(&mut self.solver, lit);
     }
 
@@ -983,10 +1040,7 @@ impl CaDiCal {
     #[track_caller]
     fn require(&self, function: &str, expected: State, lit: i32) {
         self.require_state(function, expected);
-        assert!(
-            lit != 0 && lit != i32::MIN,
-            "{function} called with invalid literal {lit}"
-        );
+        require_valid_lit(function, lit);
     }
 
     #[track_caller]
@@ -1374,17 +1428,23 @@ impl CaDiCal {
     ///
     #[must_use]
     #[inline]
+    #[track_caller]
     pub fn frozen(&self, lit: i32) -> bool {
+        require_valid_lit("frozen", lit);
         ffi::frozen(&self.solver, lit)
     }
 
     #[inline]
+    #[track_caller]
     pub fn freeze(&mut self, lit: i32) {
+        require_valid_lit("freeze", lit);
         ffi::freeze(&mut self.solver, lit);
     }
 
     #[inline]
+    #[track_caller]
     pub fn melt(&mut self, lit: i32) {
+        require_valid_lit("melt", lit);
         ffi::melt(&mut self.solver, lit);
     }
 
@@ -1398,7 +1458,9 @@ impl CaDiCal {
     ///
     #[must_use]
     #[inline]
+    #[track_caller]
     pub fn fixed(&self, lit: i32) -> i32 {
+        require_valid_lit("fixed", lit);
         ffi::fixed(&self.solver, lit)
     }
 
@@ -1406,12 +1468,16 @@ impl CaDiCal {
     /// Force the default decision phase of a variable to a certain value.
     ///
     #[inline]
+    #[track_caller]
     pub fn phase(&mut self, lit: i32) {
+        require_valid_lit("phase", lit);
         ffi::phase(&mut self.solver, lit);
     }
 
     #[inline]
+    #[track_caller]
     pub fn unphase(&mut self, lit: i32) {
+        require_valid_lit("unphase", lit);
         ffi::unphase(&mut self.solver, lit);
     }
 
