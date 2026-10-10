@@ -236,11 +236,6 @@ bool is_decision(std::unique_ptr<Solver> &solver, int lit)
     return solver->is_decision(lit);
 }
 
-void force_backtrack(std::unique_ptr<Solver> &solver, int new_level)
-{
-    return solver->force_backtrack(new_level);
-}
-
 // ************************************************************************************************
 // constrain clause
 // ************************************************************************************************
