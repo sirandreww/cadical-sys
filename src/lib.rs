@@ -532,8 +532,14 @@ impl CaDiCal {
     /// i.e., from a different thread or from a signal handler.  Only right
     /// before returning from this call it goes into a 'READY' state.
     ///
+    /// # Panics
+    ///
+    /// If the solver is in the middle of adding a clause or constraint (not READY). `CaDiCaL` would otherwise abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn solve(&mut self) -> Status {
+        self.require_ready("solve");
         ffi::solve(&mut self.solver).into()
     }
 
@@ -980,8 +986,14 @@ impl CaDiCal {
     ///   require (UNSATISFIED)
     ///   ensure (UNSATISFIED)
     ///
+    /// # Panics
+    ///
+    /// If the solver is not in the `UNSATISFIED` state. `CaDiCaL` would otherwise abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn constraint_failed(&mut self) -> bool {
+        self.require_state("constraint_failed", State::UNSATISFIED);
         ffi::constraint_failed(&mut self.solver)
     }
 
@@ -1037,6 +1049,24 @@ impl CaDiCal {
         assert!(
             state == expected,
             "{function} requires the solver to be in state {expected:?}, but it is in state {state:?}"
+        );
+    }
+
+    #[track_caller]
+    fn require_ready(&self, function: &str) {
+        let state = self.state();
+        assert!(
+            (state as i32) & (State::READY as i32) != 0,
+            "{function} requires the solver to be READY, but it is in state {state:?}"
+        );
+    }
+
+    #[track_caller]
+    fn require_one_of(&self, function: &str, expected: &[State]) {
+        let state = self.state();
+        assert!(
+            expected.contains(&state),
+            "{function} requires the solver to be in one of the states {expected:?}, but it is in state {state:?}"
         );
     }
 
@@ -1102,11 +1132,7 @@ impl CaDiCal {
     #[inline]
     #[track_caller]
     pub fn copy(source: &CaDiCal, destination: &mut CaDiCal) {
-        let state = source.state();
-        assert!(
-            (state as i32) & (State::READY as i32) != 0,
-            "copy requires the source solver to be READY, but it is in state {state:?}"
-        );
+        source.require_ready("copy");
         destination.require_state("copy", State::CONFIGURING);
         ffi::copy(&source.solver, &mut destination.solver);
     }
@@ -1231,8 +1257,17 @@ impl CaDiCal {
     ///
     /// Thus options can only bet set right after initialization.
     ///
+    /// # Panics
+    ///
+    /// If the solver is not in the `CONFIGURING` state, unless `name` is one of
+    /// `log`, `quiet`, `report` and `verbose`. `CaDiCaL` would otherwise abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn set(&mut self, name: &str, val: i32) -> bool {
+        if !matches!(name, "log" | "quiet" | "report" | "verbose") {
+            self.require_state("set", State::CONFIGURING);
+        }
         ffi::set(&mut self.solver, name.to_owned(), val)
     }
 
@@ -1249,8 +1284,14 @@ impl CaDiCal {
     ///   require (CONFIGURING)
     ///   ensure (CONFIGURING)
     ///
+    /// # Panics
+    ///
+    /// If the solver is not in the `CONFIGURING` state. `CaDiCaL` would otherwise abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn set_long_option(&mut self, arg: &str) -> bool {
+        self.require_state("set_long_option", State::CONFIGURING);
         ffi::set_long_option(&mut self.solver, arg.to_owned())
     }
 
@@ -1268,8 +1309,14 @@ impl CaDiCal {
     ///   require (CONFIGURING)
     ///   ensure (CONFIGURING)
     ///
+    /// # Panics
+    ///
+    /// If the solver is not in the `CONFIGURING` state. `CaDiCaL` would otherwise abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn configure(&mut self, name: &str) -> bool {
+        self.require_state("configure", State::CONFIGURING);
         ffi::configure(&mut self.solver, name.to_owned())
     }
 
@@ -1352,10 +1399,18 @@ impl CaDiCal {
     /// propagation is performed, which both take some time.
     ///
     ///   require (READY)
-    ///   ensure (STEADY  | SATISFIED | UNSATISFIED)
+    ///   ensure (INCONCLUSIVE | SATISFIED | UNSATISFIED)
+    ///
+    /// # Panics
+    ///
+    /// If the solver is in the middle of adding a clause or constraint (not READY),
+    /// or if `rounds` is negative. `CaDiCaL` would otherwise abort the process.
     ///
     #[inline]
+    #[track_caller]
     pub fn simplify(&mut self, rounds: i32) -> Status {
+        self.require_ready("simplify");
+        assert!(rounds >= 0, "simplify called with negative rounds {rounds}");
         ffi::simplify(&mut self.solver, rounds).into()
     }
 
@@ -1377,18 +1432,18 @@ impl CaDiCal {
 
     /// The literals implied by the last call to [`CaDiCal::propagate`].
     ///
-    ///   require (INCONCLUSIVE)
-    ///   ensure (INCONCLUSIVE)
+    ///   require (INCONCLUSIVE | SATISFIED)
+    ///   ensure (INCONCLUSIVE | SATISFIED)
     ///
     /// # Panics
     ///
-    /// If the solver is not in the `INCONCLUSIVE` state. `CaDiCaL` would
-    /// otherwise abort the process.
+    /// If the solver is not in the `INCONCLUSIVE` or `SATISFIED` state.
+    /// `CaDiCaL` would otherwise abort the process.
     ///
     #[must_use]
     #[track_caller]
     pub fn implied(&mut self) -> Vec<i32> {
-        self.require_state("implied", State::INCONCLUSIVE);
+        self.require_one_of("implied", &[State::INCONCLUSIVE, State::SATISFIED]);
         let mut implicants = Vec::new();
         ffi::implied(&mut self.solver, &mut implicants);
         implicants
@@ -1794,8 +1849,18 @@ impl CaDiCal {
     ///   require (SATISFIED || UNSATISFIED)
     ///   ensure (SATISFIED || UNSATISFIED)
     ///
+    /// # Panics
+    ///
+    /// If the solver has not finished a `solve` (it is not `SATISFIED`,
+    /// `UNSATISFIED` or `INCONCLUSIVE`). `CaDiCaL` would otherwise abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn conclude(&mut self) {
+        self.require_one_of(
+            "conclude",
+            &[State::SATISFIED, State::UNSATISFIED, State::INCONCLUSIVE],
+        );
         ffi::conclude(&mut self.solver);
     }
 

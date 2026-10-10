@@ -36,7 +36,7 @@ fn propagate_detects_conflicts() {
 }
 
 #[test]
-#[should_panic(expected = "implied requires the solver to be in state INCONCLUSIVE")]
+#[should_panic(expected = "implied requires the solver to be in one of the states")]
 fn implied_before_propagate_panics() {
     let mut solver = CaDiCal::new();
     solver.clause1(1);

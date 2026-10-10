@@ -324,7 +324,7 @@ fn zero_still_terminates_a_clause() {
 }
 
 #[test]
-#[should_panic(expected = "copy requires the source solver to be READY")]
+#[should_panic(expected = "copy requires the solver to be READY")]
 fn cloning_in_the_middle_of_a_clause_panics() {
     let mut solver = CaDiCal::new();
     solver.add(1);
@@ -357,6 +357,47 @@ fn replacing_an_external_propagator() {
     solver.connect_external_propagator(NoopPropagator);
     solver.clause2(1, 2);
     assert_eq!(solver.solve(), Status::SATISFIABLE);
+}
+
+#[test]
+#[should_panic(expected = "solve requires the solver to be READY")]
+fn solving_in_the_middle_of_a_clause_panics() {
+    let mut solver = CaDiCal::new();
+    solver.add(1);
+    solver.solve();
+}
+
+#[test]
+#[should_panic(expected = "simplify called with negative rounds -1")]
+fn simplifying_with_negative_rounds_panics() {
+    CaDiCal::new().simplify(-1);
+}
+
+#[test]
+#[should_panic(expected = "set requires the solver to be in state CONFIGURING")]
+fn setting_an_option_after_adding_clauses_panics() {
+    let mut solver = CaDiCal::new();
+    solver.clause1(1);
+    solver.set("binary", 0);
+}
+
+#[test]
+fn verbosity_can_be_set_at_any_time() {
+    let mut solver = CaDiCal::new();
+    solver.clause1(1);
+    assert!(solver.set("verbose", 0));
+}
+
+#[test]
+#[should_panic(expected = "constraint_failed requires the solver to be in state UNSATISFIED")]
+fn constraint_failed_before_solving_panics() {
+    CaDiCal::new().constraint_failed();
+}
+
+#[test]
+#[should_panic(expected = "conclude requires the solver to be in one of the states")]
+fn concluding_before_solving_panics() {
+    CaDiCal::new().conclude();
 }
 
 #[test]
