@@ -344,6 +344,33 @@ void resize(std::unique_ptr<Solver> &solver, int min_max_var)
     return solver->resize(min_max_var);
 }
 
+int declare_more_variables(std::unique_ptr<Solver> &solver, int number_of_additional_new_vars)
+{
+    return solver->declare_more_variables(number_of_additional_new_vars);
+}
+
+int declare_one_more_variable(std::unique_ptr<Solver> &solver)
+{
+    return solver->declare_one_more_variable();
+}
+
+int64_t get_statistic_value(const std::unique_ptr<Solver> &solver, rust::String name)
+{
+    return solver->get_statistic_value(name.c_str());
+}
+
+int propagate(std::unique_ptr<Solver> &solver)
+{
+    return solver->propagate();
+}
+
+void implied(std::unique_ptr<Solver> &solver, rust::Vec<int> &implicants)
+{
+    std::vector<int> internal_implicants;
+    solver->implied(internal_implicants);
+    _copy_vec_from_cxx_to_rust(internal_implicants, implicants);
+}
+
 bool is_valid_option(rust::String name)
 {
     return Solver::is_valid_option(name.c_str());
@@ -814,6 +841,11 @@ struct CustomTracer : public Tracer
     rust::Fn<void(uint8_t *, int, const rust::Slice<const int>)> rust_conclude_sat;
     rust::Fn<void(uint8_t *, int, const rust::Slice<const int64_t>)> rust_conclude_unsat;
     rust::Fn<void(uint8_t *, const rust::Slice<const int>)> rust_conclude_unknown;
+    rust::Fn<void(uint8_t *, int64_t, const rust::Slice<const int>)> rust_demote_clause;
+    rust::Fn<void(uint8_t *, int, int64_t)> rust_report_status;
+    rust::Fn<void(uint8_t *, int64_t)> rust_begin_proof;
+    rust::Fn<void(uint8_t *)> rust_solve_query;
+    rust::Fn<void(uint8_t *, int, int)> rust_notify_equivalence;
 
     CustomTracer(
         uint8_t *s,
@@ -829,7 +861,12 @@ struct CustomTracer : public Tracer
         rust::Fn<void(uint8_t *, int64_t, const rust::Slice<const int>, const rust::Slice<const int64_t>)> rust_add_assumption_clause,
         rust::Fn<void(uint8_t *, int, const rust::Slice<const int>)> rust_conclude_sat,
         rust::Fn<void(uint8_t *, int, const rust::Slice<const int64_t>)> rust_conclude_unsat,
-        rust::Fn<void(uint8_t *, const rust::Slice<const int>)> rust_conclude_unknown)
+        rust::Fn<void(uint8_t *, const rust::Slice<const int>)> rust_conclude_unknown,
+        rust::Fn<void(uint8_t *, int64_t, const rust::Slice<const int>)> rust_demote_clause,
+        rust::Fn<void(uint8_t *, int, int64_t)> rust_report_status,
+        rust::Fn<void(uint8_t *, int64_t)> rust_begin_proof,
+        rust::Fn<void(uint8_t *)> rust_solve_query,
+        rust::Fn<void(uint8_t *, int, int)> rust_notify_equivalence)
         : s(s),
           rust_add_original_clause(rust_add_original_clause),
           rust_add_derived_clause(rust_add_derived_clause),
@@ -843,7 +880,12 @@ struct CustomTracer : public Tracer
           rust_add_assumption_clause(rust_add_assumption_clause),
           rust_conclude_sat(rust_conclude_sat),
           rust_conclude_unsat(rust_conclude_unsat),
-          rust_conclude_unknown(rust_conclude_unknown) {}
+          rust_conclude_unknown(rust_conclude_unknown),
+          rust_demote_clause(rust_demote_clause),
+          rust_report_status(rust_report_status),
+          rust_begin_proof(rust_begin_proof),
+          rust_solve_query(rust_solve_query),
+          rust_notify_equivalence(rust_notify_equivalence) {}
 
     void add_original_clause(int64_t id, bool redundant, const std::vector<int> &clause, bool restored = false) override
     {
@@ -920,6 +962,33 @@ struct CustomTracer : public Tracer
     {
         rust::Slice<const int> slice{trail.data(), trail.size()};
         rust_conclude_unknown(s, slice);
+    }
+
+    // CaDiCaL declares this id as unsigned, unlike every other clause id.
+    void demote_clause(uint64_t id, const std::vector<int> &clause) override
+    {
+        rust::Slice<const int> slice{clause.data(), clause.size()};
+        rust_demote_clause(s, static_cast<int64_t>(id), slice);
+    }
+
+    void report_status(int status, int64_t id) override
+    {
+        rust_report_status(s, status, id);
+    }
+
+    void begin_proof(int64_t id) override
+    {
+        rust_begin_proof(s, id);
+    }
+
+    void solve_query() override
+    {
+        rust_solve_query(s);
+    }
+
+    void notify_equivalence(int lit, int other) override
+    {
+        rust_notify_equivalence(s, lit, other);
     }
 };
 
@@ -1006,7 +1075,12 @@ std::unique_ptr<Tracer> new_tracer(
     rust::Fn<void(uint8_t *, int64_t, const rust::Slice<const int>, const rust::Slice<const int64_t>)> add_assumption_clause,
     rust::Fn<void(uint8_t *, int, const rust::Slice<const int>)> conclude_sat,
     rust::Fn<void(uint8_t *, int, const rust::Slice<const int64_t>)> conclude_unsat,
-    rust::Fn<void(uint8_t *, const rust::Slice<const int>)> conclude_unknown)
+    rust::Fn<void(uint8_t *, const rust::Slice<const int>)> conclude_unknown,
+    rust::Fn<void(uint8_t *, int64_t, const rust::Slice<const int>)> demote_clause,
+    rust::Fn<void(uint8_t *, int, int64_t)> report_status,
+    rust::Fn<void(uint8_t *, int64_t)> begin_proof,
+    rust::Fn<void(uint8_t *)> solve_query,
+    rust::Fn<void(uint8_t *, int, int)> notify_equivalence)
 {
     return std::unique_ptr<Tracer>(new CustomTracer(
         initial_state,
@@ -1022,5 +1096,10 @@ std::unique_ptr<Tracer> new_tracer(
         add_assumption_clause,
         conclude_sat,
         conclude_unsat,
-        conclude_unknown));
+        conclude_unknown,
+        demote_clause,
+        report_status,
+        begin_proof,
+        solve_query,
+        notify_equivalence));
 }

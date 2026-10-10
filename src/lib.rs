@@ -1021,6 +1021,13 @@ impl CaDiCal {
         ffi::version()
     }
 
+    /// return the name and version of the incremental SAT solving library
+    #[must_use]
+    #[inline]
+    pub fn signature() -> String {
+        ffi::signature()
+    }
+
     /*----------------------------------------------------------------------*/
     /// Copy 'this' into a fresh 'other'.  The copy procedure is not a deep
     /// clone, but only copies irredundant clauses and units.  It also makes
@@ -1065,6 +1072,38 @@ impl CaDiCal {
     #[inline]
     pub fn resize(&mut self, min_max_var: i32) {
         ffi::resize(&mut self.solver, min_max_var);
+    }
+
+    /// Increase the maximum variable index by a number of new variables.
+    /// initializes '`number_of_additional_new_vars`' new variables and protects
+    /// them from being used by the solver as extension variables (BVA).
+    ///
+    /// It returns the new maximum variable index which is the highest
+    /// variable name of the consecutive range of newly declared variables.
+    /// It has the same state transition and conditions as 'resize' above.
+    ///
+    ///   require (READY)
+    ///   ensure (STEADY)
+    ///
+    #[inline]
+    pub fn declare_more_variables(&mut self, number_of_additional_new_vars: i32) -> i32 {
+        ffi::declare_more_variables(&mut self.solver, number_of_additional_new_vars)
+    }
+
+    /// Returns the next fresh variable that was not used internally.
+    ///
+    #[inline]
+    pub fn declare_one_more_variable(&mut self) -> i32 {
+        ffi::declare_one_more_variable(&mut self.solver)
+    }
+
+    /// Get the value of some statistics or -1 if the statistics does not
+    /// exist or is not supported. Only requires the state to be initialized.
+    ///
+    #[must_use]
+    #[inline]
+    pub fn get_statistic_value(&self, name: &str) -> i64 {
+        ffi::get_statistic_value(&self.solver, name.to_owned())
     }
 
     /// Renamed to [`CaDiCal::resize`] in `CaDiCaL` 3.
@@ -1254,6 +1293,41 @@ impl CaDiCal {
     #[inline]
     pub fn simplify(&mut self, rounds: i32) -> Status {
         ffi::simplify(&mut self.solver, rounds).into()
+    }
+
+    /// This function executes the given number of preprocessing rounds
+    /// without search: it only performs unit propagation by assuming the
+    /// currently defined (potentially empty) set of assumptions. In case unit
+    /// propagation leads to a conflict it returns `UNSATISFIABLE`. Otherwise
+    /// it usually returns `UNKNOWN`, and the implied literals can be queried
+    /// with [`CaDiCal::implied`]. In rare cases (no decision needed) it
+    /// returns `SATISFIABLE`.
+    ///
+    ///   require (READY)
+    ///   ensure (INCONCLUSIVE | SATISFIED | UNSATISFIED)
+    ///
+    #[inline]
+    pub fn propagate(&mut self) -> Status {
+        ffi::propagate(&mut self.solver).into()
+    }
+
+    /// The literals implied by the last call to [`CaDiCal::propagate`].
+    ///
+    ///   require (INCONCLUSIVE)
+    ///   ensure (INCONCLUSIVE)
+    ///
+    /// # Panics
+    ///
+    /// If the solver is not in the `INCONCLUSIVE` state. `CaDiCaL` would
+    /// otherwise abort the process.
+    ///
+    #[must_use]
+    #[track_caller]
+    pub fn implied(&mut self) -> Vec<i32> {
+        self.require_state("implied", State::INCONCLUSIVE);
+        let mut implicants = Vec::new();
+        ffi::implied(&mut self.solver, &mut implicants);
+        implicants
     }
 
     //------------------------------------------------------------------------
@@ -1527,6 +1601,36 @@ impl CaDiCal {
             t.conclude_unknown(trail);
         }
 
+        fn demote_clause<T: ProofTracer>(state: *mut u8, id: i64, clause: &[i32]) {
+            let ptr: *mut T = state.cast::<T>();
+            let t = unsafe { &mut *ptr };
+            t.demote_clause(id, clause);
+        }
+
+        fn report_status<T: ProofTracer>(state: *mut u8, status: i32, id: i64) {
+            let ptr: *mut T = state.cast::<T>();
+            let t = unsafe { &mut *ptr };
+            t.report_status(status, id);
+        }
+
+        fn begin_proof<T: ProofTracer>(state: *mut u8, first_derived_id: i64) {
+            let ptr: *mut T = state.cast::<T>();
+            let t = unsafe { &mut *ptr };
+            t.begin_proof(first_derived_id);
+        }
+
+        fn solve_query<T: ProofTracer>(state: *mut u8) {
+            let ptr: *mut T = state.cast::<T>();
+            let t = unsafe { &mut *ptr };
+            t.solve_query();
+        }
+
+        fn notify_equivalence<T: ProofTracer>(state: *mut u8, lit: i32, other: i32) {
+            let ptr: *mut T = state.cast::<T>();
+            let t = unsafe { &mut *ptr };
+            t.notify_equivalence(lit, other);
+        }
+
         let solver_state = self.state();
         assert!(
             solver_state == State::CONFIGURING,
@@ -1552,6 +1656,11 @@ impl CaDiCal {
                 conclude_sat::<T>,
                 conclude_unsat::<T>,
                 conclude_unknown::<T>,
+                demote_clause::<T>,
+                report_status::<T>,
+                begin_proof::<T>,
+                solve_query::<T>,
+                notify_equivalence::<T>,
             )
         });
         ffi::connect_proof_tracer1(&mut self.solver, &mut tracer.wrapper, antecedents);
@@ -2055,6 +2164,24 @@ pub trait ProofTracer {
 
     /// Called when the solver concludes UNKNOWN
     fn conclude_unknown(&mut self, trail: &[i32]);
+
+    /// Called when a clause is demoted from irredundant to redundant
+    fn demote_clause(&mut self, _id: i64, _clause: &[i32]) {}
+
+    /// Called when a solve call ends with the given status. If the status is
+    /// UNSAT and an empty clause has been derived, `id` is its id.
+    fn report_status(&mut self, _status: i32, _id: i64) {}
+
+    /// Called when the proof begins; ids below `first_derived_id` are
+    /// reserved for original clauses
+    fn begin_proof(&mut self, _first_derived_id: i64) {}
+
+    /// Called when a solve call (query) starts
+    fn solve_query(&mut self) {}
+
+    /// Called when two literals are found to be equivalent (possibly
+    /// including variables added by the solver, e.g. through BVA)
+    fn notify_equivalence(&mut self, _lit: i32, _other: i32) {}
 }
 
 // ************************************************************************************************
@@ -2171,5 +2298,20 @@ impl<T: ProofTracer> ProofTracer for Rc<RefCell<T>> {
     }
     fn conclude_unknown(&mut self, trail: &[i32]) {
         self.borrow_mut().conclude_unknown(trail);
+    }
+    fn demote_clause(&mut self, id: i64, clause: &[i32]) {
+        self.borrow_mut().demote_clause(id, clause);
+    }
+    fn report_status(&mut self, status: i32, id: i64) {
+        self.borrow_mut().report_status(status, id);
+    }
+    fn begin_proof(&mut self, first_derived_id: i64) {
+        self.borrow_mut().begin_proof(first_derived_id);
+    }
+    fn solve_query(&mut self) {
+        self.borrow_mut().solve_query();
+    }
+    fn notify_equivalence(&mut self, lit: i32, other: i32) {
+        self.borrow_mut().notify_equivalence(lit, other);
     }
 }
