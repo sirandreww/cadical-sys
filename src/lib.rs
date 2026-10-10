@@ -1016,9 +1016,9 @@ impl CaDiCal {
         ffi::is_preprocessing_option(name.to_owned())
     }
 
-    /// Determine whether 'arg' is a valid long option of the form '--<name>',
-    /// '--<name>=<val>' or '--no-<name>' similar to '`set_long_option`' below.
-    /// Legal values are 'true', 'false', or '[-]<mantissa>[e<exponent>]'.
+    /// Determine whether 'arg' is a valid long option of the form `--<name>`,
+    /// `--<name>=<val>` or `--no-<name>` similar to '`set_long_option`' below.
+    /// Legal values are 'true', 'false', or `[-]<mantissa>[e<exponent>]`.
     #[must_use]
     #[inline]
     pub fn is_valid_long_option(arg: &str) -> bool {
@@ -1040,8 +1040,8 @@ impl CaDiCal {
         ffi::prefix(&mut self.solver, verbose_message_prefix.to_owned());
     }
 
-    /// Explicit version of setting an option.  If the option '<name>' exists
-    /// and '<val>' can be parsed then 'true' is returned.  If the option value
+    /// Explicit version of setting an option.  If the option `<name>` exists
+    /// and `<val>` can be parsed then 'true' is returned.  If the option value
     /// is out of range the actual value is computed as the closest (minimum or
     /// maximum) value possible, but still 'true' is returned.
     ///
@@ -1066,7 +1066,7 @@ impl CaDiCal {
 
     /// This function accepts options in command line syntax:
     ///
-    ///   '--<name>=<val>', '--<name>', or '--no-<name>'
+    ///   `--<name>=<val>`, `--<name>`, or `--no-<name>`
     ///
     /// It actually calls the previous 'set' function after parsing 'arg'.  The
     /// same values are expected as for '`is_valid_long_option`' above and as
@@ -1113,7 +1113,7 @@ impl CaDiCal {
         ffi::configure(&mut self.solver, name.to_owned())
     }
 
-    /// Increase preprocessing and inprocessing limits by '10^<val>'.  Values
+    /// Increase preprocessing and inprocessing limits by `10^<val>`.  Values
     /// below '0' are ignored and values above '9' are reduced to '9'.
     ///
     ///   require (READY)
@@ -1414,7 +1414,7 @@ impl CaDiCal {
     /// about the size of the written proof file and if compressed on-the-fly
     /// the number of actual bytes written (including deflation percentage) are
     /// printed.  Before actually closing (or detaching in case of writing to
-    /// '<stdout>') we check whether '`flush_proof_trace`' was called since the
+    /// `<stdout>`) we check whether '`flush_proof_trace`' was called since the
     /// last time a proof step (addition or deletion) was traced.  If this is
     /// not the case we would call '`flush_proof_trace`' with the same 'print'
     /// argument.
@@ -1818,7 +1818,7 @@ impl CaDiCal {
     }
 
     /// The following routines work the same way but parse both DIMACS and
-    /// INCCNF files (with 'p inccnf' header and 'a <cube>' lines).  If the
+    /// INCCNF files (with 'p inccnf' header and `a <cube>` lines).  If the
     /// parser finds and 'p inccnf' header or cubes then '*incremental' is set
     /// to true and the cubes are stored in the given vector (each cube
     /// terminated by a zero).
@@ -1890,8 +1890,8 @@ impl CaDiCal {
     /// to a file in DIMACS format.  Clauses on the extension stack are
     /// not included, nor any redundant clauses.
     ///
-    /// The '`min_max_var`' parameter gives a lower bound on the number '<vars>'
-    /// of variables used in the DIMACS 'p cnf <vars> ...' header.
+    /// The '`min_max_var`' parameter gives a lower bound on the number `<vars>`
+    /// of variables used in the DIMACS `p cnf <vars> ...` header.
     ///
     /// Returns `Err` with `CaDiCaL`'s error message if unsuccessful.
     ///
@@ -1923,7 +1923,7 @@ impl CaDiCal {
     }
 
     /// Print build configuration to a file with prefix 'c '.  If the file
-    /// is '<stdout>' or '<stderr>' then terminal color codes might be used.
+    /// is `<stdout>` or `<stderr>` then terminal color codes might be used.
     ///
     /// # Errors
     ///
