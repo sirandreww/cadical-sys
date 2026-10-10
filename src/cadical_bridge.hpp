@@ -554,9 +554,10 @@ void close_proof_trace(std::unique_ptr<Solver> &solver, bool print)
     return solver->close_proof_trace(print);
 }
 
-void connect_proof_tracer1(std::unique_ptr<Solver> &solver, std::unique_ptr<Tracer> &tracer, bool antecedents)
+void connect_proof_tracer1(std::unique_ptr<Solver> &solver, std::unique_ptr<Tracer> &tracer, bool antecedents,
+                           bool finalize_clauses)
 {
-    return solver->connect_proof_tracer(tracer.get(), antecedents);
+    return solver->connect_proof_tracer(tracer.get(), antecedents, finalize_clauses);
 }
 
 void conclude(std::unique_ptr<Solver> &solver)

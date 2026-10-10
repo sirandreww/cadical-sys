@@ -1506,6 +1506,9 @@ impl CaDiCal {
     /// afterwards, pass an `Rc<RefCell<_>>` and keep a clone of the `Rc`.
     /// Connecting a tracer disconnects any tracer connected earlier.
     ///
+    /// [`ProofTracer::finalize_clause`] is only called when `finalize_clauses`
+    /// is true.
+    ///
     /// # Panics
     ///
     /// If the solver is not in the `CONFIGURING` state, i.e. clauses have
@@ -1517,6 +1520,7 @@ impl CaDiCal {
         &mut self,
         tracer: T,
         antecedents: bool,
+        finalize_clauses: bool,
     ) {
         fn add_original_clause<T: ProofTracer>(
             state: *mut u8,
@@ -1680,7 +1684,12 @@ impl CaDiCal {
                 notify_equivalence::<T>,
             )
         });
-        ffi::connect_proof_tracer1(&mut self.solver, &mut tracer.wrapper, antecedents);
+        ffi::connect_proof_tracer1(
+            &mut self.solver,
+            &mut tracer.wrapper,
+            antecedents,
+            finalize_clauses,
+        );
         self.last_tracer = Some(tracer);
     }
 
