@@ -3,7 +3,7 @@
 //! Several of these only fail loudly (rather than silently corrupting memory)
 //! when run under valgrind, which CI does in the `Valgrind` job.
 
-use cadical_sys::{CaDiCal, Learner, ProofTracer, Status, Terminator};
+use cadical_sys::{CaDiCal, ExternalPropagator, Learner, ProofTracer, Status, Terminator};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -68,6 +68,23 @@ impl ProofTracer for NoopTracer {
     fn conclude_sat(&mut self, _: i32, _: &[i32]) {}
     fn conclude_unsat(&mut self, _: i32, _: &[u64]) {}
     fn conclude_unknown(&mut self, _: &[i32]) {}
+}
+
+struct NoopPropagator;
+
+impl ExternalPropagator for NoopPropagator {
+    fn notify_assignment(&mut self, _: &[i32]) {}
+    fn notify_new_decision_level(&mut self) {}
+    fn notify_backtrack(&mut self, _: usize) {}
+    fn cb_check_found_model(&mut self, _: &[i32]) -> bool {
+        true
+    }
+    fn cb_has_external_clause(&mut self, _: &mut bool) -> bool {
+        false
+    }
+    fn cb_add_external_clause_lit(&mut self) -> i32 {
+        0
+    }
 }
 
 /// A formula that needs search, so the terminator and learner get called.
@@ -196,4 +213,83 @@ fn clone_does_not_share_callbacks() {
     drop(solver);
     assert_eq!(Rc::strong_count(&learner), 1);
     drop(clone);
+}
+
+// ---------------------------------------------------------------------------
+// Contract violations panic instead of aborting the process
+// ---------------------------------------------------------------------------
+
+#[test]
+#[should_panic(expected = "val requires the solver to be in state SATISFIED")]
+fn val_before_solve_panics() {
+    let mut solver = CaDiCal::new();
+    solver.clause1(1);
+    solver.val(1);
+}
+
+#[test]
+#[should_panic(expected = "val requires the solver to be in state SATISFIED")]
+fn val_after_unsat_panics() {
+    let mut solver = CaDiCal::new();
+    solver.clause1(1);
+    solver.clause1(-1);
+    assert_eq!(solver.solve(), Status::UNSATISFIABLE);
+    solver.val(1);
+}
+
+#[test]
+#[should_panic(expected = "invalid literal 0")]
+fn val_of_zero_panics() {
+    let mut solver = CaDiCal::new();
+    solver.clause1(1);
+    assert_eq!(solver.solve(), Status::SATISFIABLE);
+    solver.val(0);
+}
+
+#[test]
+#[should_panic(expected = "failed requires the solver to be in state UNSATISFIED")]
+fn failed_after_sat_panics() {
+    let mut solver = CaDiCal::new();
+    solver.clause1(1);
+    assert_eq!(solver.solve(), Status::SATISFIABLE);
+    solver.failed(1);
+}
+
+#[test]
+#[should_panic(expected = "flip requires the solver to be in state SATISFIED")]
+fn flip_before_solve_panics() {
+    let mut solver = CaDiCal::new();
+    solver.flip(1);
+}
+
+#[test]
+#[should_panic(expected = "not supported while an external propagator is connected")]
+fn flippable_with_external_propagator_panics() {
+    let mut solver = CaDiCal::new();
+    solver.connect_external_propagator(NoopPropagator);
+    solver.clause1(1);
+    assert_eq!(solver.solve(), Status::SATISFIABLE);
+    solver.flippable(1);
+}
+
+#[test]
+#[should_panic(expected = "connect_proof_tracer1 requires the solver to be in state CONFIGURING")]
+fn connecting_a_proof_tracer_after_adding_clauses_panics() {
+    let mut solver = CaDiCal::new();
+    solver.clause1(1);
+    solver.connect_proof_tracer1(NoopTracer::default(), false);
+}
+
+#[test]
+fn guarded_functions_work_in_the_right_state() {
+    let mut solver = CaDiCal::new();
+    solver.clause2(1, 2);
+    assert_eq!(solver.solve(), Status::SATISFIABLE);
+    assert_ne!(solver.val(1), 0);
+    let _ = solver.flippable(1);
+
+    solver.assume(-1);
+    solver.assume(-2);
+    assert_eq!(solver.solve(), Status::UNSATISFIABLE);
+    assert!(solver.failed(-1) || solver.failed(-2));
 }

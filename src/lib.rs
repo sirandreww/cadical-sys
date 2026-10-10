@@ -472,8 +472,15 @@ impl CaDiCal {
     ///   require (SATISFIED)
     ///   ensure (SATISFIED)
     ///
+    /// # Panics
+    ///
+    /// If the solver is not in the `SATISFIED` state or `lit` is not a valid
+    /// literal (zero or `i32::MIN`). `CaDiCaL` would otherwise abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn val(&mut self, lit: i32) -> i32 {
+        self.require("val", State::SATISFIED, lit);
         ffi::val(&mut self.solver, lit)
     }
 
@@ -505,8 +512,20 @@ impl CaDiCal {
     ///   require (SATISFIED)
     ///   ensure (SATISFIED)
     ///
+    /// # Panics
+    ///
+    /// If the solver is not in the `SATISFIED` state, `lit` is not a valid
+    /// literal, or an external propagator is connected. `CaDiCaL` would
+    /// otherwise abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn flip(&mut self, lit: i32) -> bool {
+        self.require("flip", State::SATISFIED, lit);
+        assert!(
+            self.last_external_propagator.is_none(),
+            "flip is not supported while an external propagator is connected"
+        );
         ffi::flip(&mut self.solver, lit)
     }
 
@@ -516,8 +535,20 @@ impl CaDiCal {
     ///   require (SATISFIED)
     ///   ensure (SATISFIED)
     ///
+    /// # Panics
+    ///
+    /// If the solver is not in the `SATISFIED` state, `lit` is not a valid
+    /// literal, or an external propagator is connected. `CaDiCaL` would
+    /// otherwise abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn flippable(&mut self, lit: i32) -> bool {
+        self.require("flippable", State::SATISFIED, lit);
+        assert!(
+            self.last_external_propagator.is_none(),
+            "flippable is not supported while an external propagator is connected"
+        );
         ffi::flippable(&mut self.solver, lit)
     }
 
@@ -528,8 +559,15 @@ impl CaDiCal {
     ///   require (UNSATISFIED)
     ///   ensure (UNSATISFIED)
     ///
+    /// # Panics
+    ///
+    /// If the solver is not in the `UNSATISFIED` state or `lit` is not a valid
+    /// literal (zero or `i32::MIN`). `CaDiCaL` would otherwise abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn failed(&mut self, lit: i32) -> bool {
+        self.require("failed", State::UNSATISFIED, lit);
         ffi::failed(&mut self.solver, lit)
     }
 
@@ -892,6 +930,21 @@ impl CaDiCal {
     #[inline]
     pub fn state(&self) -> State {
         ffi::state(&self.solver).into()
+    }
+
+    /// Panics where `CaDiCaL` would abort the process on a contract violation,
+    /// so misuse of the safe API is reported as a catchable Rust panic.
+    #[track_caller]
+    fn require(&self, function: &str, expected: State, lit: i32) {
+        let state = self.state();
+        assert!(
+            state == expected,
+            "{function} requires the solver to be in state {expected:?}, but it is in state {state:?}"
+        );
+        assert!(
+            lit != 0 && lit != i32::MIN,
+            "{function} called with invalid literal {lit}"
+        );
     }
 
     /// Similar to 'state ()' but using the staddard competition exit codes of
@@ -1297,7 +1350,13 @@ impl CaDiCal {
     /// afterwards, pass an `Rc<RefCell<_>>` and keep a clone of the `Rc`.
     /// Connecting a tracer disconnects any tracer connected earlier.
     ///
+    /// # Panics
+    ///
+    /// If the solver is not in the `CONFIGURING` state, i.e. clauses have
+    /// already been added. `CaDiCaL` would otherwise abort the process.
+    ///
     #[allow(clippy::too_many_lines)]
+    #[track_caller]
     pub fn connect_proof_tracer1<T: ProofTracer + 'static>(
         &mut self,
         tracer: T,
@@ -1402,6 +1461,11 @@ impl CaDiCal {
             t.conclude_unknown(trail);
         }
 
+        let solver_state = self.state();
+        assert!(
+            solver_state == State::CONFIGURING,
+            "connect_proof_tracer1 requires the solver to be in state CONFIGURING, but it is in state {solver_state:?}"
+        );
         // Unlike the other callbacks, CaDiCaL keeps every connected tracer, so
         // the previous one must be disconnected before it is dropped.
         self.disconnect_proof_tracer1();
