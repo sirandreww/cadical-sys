@@ -298,6 +298,32 @@ fn observing_a_variable_with_a_propagator() {
 }
 
 #[test]
+#[should_panic(expected = "clause2 called with invalid literal 0")]
+fn zero_inside_a_clause_panics() {
+    CaDiCal::new().clause2(1, 0);
+}
+
+#[test]
+#[should_panic(expected = "add called with invalid literal -2147483648")]
+fn adding_int_min_panics() {
+    CaDiCal::new().add(i32::MIN);
+}
+
+#[test]
+#[should_panic(expected = "assume called with invalid literal 0")]
+fn assuming_zero_panics() {
+    CaDiCal::new().assume(0);
+}
+
+#[test]
+fn zero_still_terminates_a_clause() {
+    let mut solver = CaDiCal::new();
+    solver.add(1);
+    solver.add(0);
+    assert_eq!(solver.solve(), Status::SATISFIABLE);
+}
+
+#[test]
 fn guarded_functions_work_in_the_right_state() {
     let mut solver = CaDiCal::new();
     solver.clause2(1, 2);
