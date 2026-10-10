@@ -80,10 +80,10 @@
 //!    let mut solver = CaDiCal::new();
 //!
 //!    // Configure the solver
-//!    solver.configure("plain".to_string());
+//!    solver.configure("plain");
 //!
 //!    // Set some options
-//!    solver.set("verbose".to_string(), 1);
+//!    solver.set("verbose", 1);
 //!
 //!    // Add complex clauses
 //!    solver.clause3(1, 2, 3);  // x1 OR x2 OR x3
@@ -114,19 +114,19 @@
 //!    let mut var_count = 0;
 //!
 //!    // Read a DIMACS CNF file
-//!    let result = solver.read_dimacs1(
-//!        "./tests/problem.cnf".to_string(),
-//!        "my_problem".to_string(),
-//!        &mut var_count,
-//!        0
-//!    );
+//!    solver
+//!        .read_dimacs1("./tests/problem.cnf", "my_problem", &mut var_count, 0)
+//!        .expect("failed to read DIMACS file");
 //!
 //!    // Solve the problem from the file
 //!    let status = solver.solve();
 //!
 //!    // Write out results or extension
 //!    if status == Status::SATISFIABLE {
-//!        solver.write_extension("/tmp/solution.ext".to_string());
+//!        let path = std::env::temp_dir().join("solution.ext");
+//!        solver
+//!            .write_extension(path.to_str().unwrap())
+//!            .expect("failed to write extension");
 //!    }
 //! ```
 //!
@@ -222,6 +222,15 @@ use std::rc::Rc;
 /// This module contains the FFI bindings to the `CaDiCaL` SAT solver.
 /// Some functions are unsafe due to necessity.
 pub mod bridge;
+
+/// The C++ shim reports success as an empty string and failure as an error message.
+fn into_result(message: String) -> Result<(), String> {
+    if message.is_empty() {
+        Ok(())
+    } else {
+        Err(message)
+    }
+}
 
 /// The SAT competition standardized the exit code of SAT solvers to the
 /// following which then is also used return code for 'solve' functions.
@@ -936,14 +945,19 @@ impl CaDiCal {
     /// so misuse of the safe API is reported as a catchable Rust panic.
     #[track_caller]
     fn require(&self, function: &str, expected: State, lit: i32) {
+        self.require_state(function, expected);
+        assert!(
+            lit != 0 && lit != i32::MIN,
+            "{function} called with invalid literal {lit}"
+        );
+    }
+
+    #[track_caller]
+    fn require_state(&self, function: &str, expected: State) {
         let state = self.state();
         assert!(
             state == expected,
             "{function} requires the solver to be in state {expected:?}, but it is in state {state:?}"
-        );
-        assert!(
-            lit != 0 && lit != i32::MIN,
-            "{function} called with invalid literal {lit}"
         );
     }
 
@@ -1017,16 +1031,16 @@ impl CaDiCal {
     ///
     #[must_use]
     #[inline]
-    pub fn is_valid_option(name: String) -> bool {
-        ffi::is_valid_option(name)
+    pub fn is_valid_option(name: &str) -> bool {
+        ffi::is_valid_option(name.to_owned())
     }
 
     /// Determine whether 'name' enables a specific preprocessing technique.
     ///
     #[must_use]
     #[inline]
-    pub fn is_preprocessing_option(name: String) -> bool {
-        ffi::is_preprocessing_option(name)
+    pub fn is_preprocessing_option(name: &str) -> bool {
+        ffi::is_preprocessing_option(name.to_owned())
     }
 
     /// Determine whether 'arg' is a valid long option of the form '--<name>',
@@ -1034,23 +1048,23 @@ impl CaDiCal {
     /// Legal values are 'true', 'false', or '[-]<mantissa>[e<exponent>]'.
     #[must_use]
     #[inline]
-    pub fn is_valid_long_option(arg: String) -> bool {
-        ffi::is_valid_long_option(arg)
+    pub fn is_valid_long_option(arg: &str) -> bool {
+        ffi::is_valid_long_option(arg.to_owned())
     }
 
     /// Get the current value of the option 'name'.  If 'name' is invalid then
     /// zero is returned.  Here '--...' arguments as invalid options.
     ///
     #[inline]
-    pub fn get(&mut self, name: String) -> i32 {
-        ffi::get(&mut self.solver, name)
+    pub fn get(&mut self, name: &str) -> i32 {
+        ffi::get(&mut self.solver, name.to_owned())
     }
 
     /// Set the default verbose message prefix (default "c ").
     ///
     #[inline]
-    pub fn prefix(&mut self, verbose_message_prefix: String) {
-        ffi::prefix(&mut self.solver, verbose_message_prefix);
+    pub fn prefix(&mut self, verbose_message_prefix: &str) {
+        ffi::prefix(&mut self.solver, verbose_message_prefix.to_owned());
     }
 
     /// Explicit version of setting an option.  If the option '<name>' exists
@@ -1064,8 +1078,8 @@ impl CaDiCal {
     /// Thus options can only bet set right after initialization.
     ///
     #[inline]
-    pub fn set(&mut self, name: String, val: i32) -> bool {
-        ffi::set(&mut self.solver, name, val)
+    pub fn set(&mut self, name: &str, val: i32) -> bool {
+        ffi::set(&mut self.solver, name.to_owned(), val)
     }
 
     /// This function accepts options in command line syntax:
@@ -1082,16 +1096,16 @@ impl CaDiCal {
     ///   ensure (CONFIGURING)
     ///
     #[inline]
-    pub fn set_long_option(&mut self, arg: String) -> bool {
-        ffi::set_long_option(&mut self.solver, arg)
+    pub fn set_long_option(&mut self, arg: &str) -> bool {
+        ffi::set_long_option(&mut self.solver, arg.to_owned())
     }
 
     /// Determine whether 'name' is a valid configuration.
     ///
     #[must_use]
     #[inline]
-    pub fn is_valid_configuration(name: String) -> bool {
-        ffi::is_valid_configuration(name)
+    pub fn is_valid_configuration(name: &str) -> bool {
+        ffi::is_valid_configuration(name.to_owned())
     }
 
     /// Overwrite (some) options with the forced values of the configuration.
@@ -1101,8 +1115,8 @@ impl CaDiCal {
     ///   ensure (CONFIGURING)
     ///
     #[inline]
-    pub fn configure(&mut self, name: String) -> bool {
-        ffi::configure(&mut self.solver, name)
+    pub fn configure(&mut self, name: &str) -> bool {
+        ffi::configure(&mut self.solver, name.to_owned())
     }
 
     /// Increase preprocessing and inprocessing limits by '10^<val>'.  Values
@@ -1134,12 +1148,12 @@ impl CaDiCal {
     ///   ensure (READY)
     ///
     #[inline]
-    pub fn limit(&mut self, arg: String, val: i32) -> bool {
-        ffi::limit(&mut self.solver, arg, val)
+    pub fn limit(&mut self, arg: &str, val: i32) -> bool {
+        ffi::limit(&mut self.solver, arg.to_owned(), val)
     }
     #[inline]
-    pub fn is_valid_limit(&mut self, arg: String) -> bool {
-        ffi::is_valid_limit(&mut self.solver, arg)
+    pub fn is_valid_limit(&mut self, arg: &str) -> bool {
+        ffi::is_valid_limit(&mut self.solver, arg.to_owned())
     }
 
     /// The number of currently active variables and clauses can be queried by
@@ -1286,14 +1300,14 @@ impl CaDiCal {
     ///
     /// Write DRAT proof.
     #[inline]
-    pub fn trace_proof1(&mut self, file: String, name: String) -> bool {
-        ffi::trace_proof1(&mut self.solver, file, name)
+    pub fn trace_proof1(&mut self, file: &str, name: &str) -> bool {
+        ffi::trace_proof1(&mut self.solver, file.to_owned(), name.to_owned())
     }
 
     /// Open & write proof.
     #[inline]
-    pub fn trace_proof2(&mut self, path: String) -> bool {
-        ffi::trace_proof2(&mut self.solver, path)
+    pub fn trace_proof2(&mut self, path: &str) -> bool {
+        ffi::trace_proof2(&mut self.solver, path.to_owned())
     }
 
     /// Flushing the proof trace file eventually calls 'fflush' on the actual
@@ -1617,25 +1631,58 @@ impl CaDiCal {
     /// strict formatting of the header is required, i.e., single spaces
     /// everywhere and no trailing white space.
     ///
-    /// Returns zero if successful and otherwise an error message.
+    /// Returns `Err` with `CaDiCaL`'s error message if unsuccessful.
     ///
     ///   require (VALID)
     ///   ensure (VALID)
     ///
+    /// # Errors
+    ///
+    /// If the file cannot be opened or parsed.
+    ///
+    /// # Panics
+    ///
+    /// If the solver is not in the `CONFIGURING` state, i.e. clauses have
+    /// already been added. `CaDiCaL` would otherwise abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn read_dimacs1(
         &mut self,
-        file: String,
-        name: String,
+        file: &str,
+        name: &str,
         vars: &mut i32,
         strict: i32,
-    ) -> String {
-        ffi::read_dimacs1(&mut self.solver, file, name, vars, strict)
+    ) -> Result<(), String> {
+        self.require_state("read_dimacs1", State::CONFIGURING);
+        into_result(ffi::read_dimacs1(
+            &mut self.solver,
+            file.to_owned(),
+            name.to_owned(),
+            vars,
+            strict,
+        ))
     }
 
+    /// # Errors
+    ///
+    /// If the file cannot be opened or parsed.
+    ///
+    /// # Panics
+    ///
+    /// If the solver is not in the `CONFIGURING` state, i.e. clauses have
+    /// already been added. `CaDiCaL` would otherwise abort the process.
+    ///
     #[inline]
-    pub fn read_dimacs2(&mut self, path: String, vars: &mut i32, strict: i32) -> String {
-        ffi::read_dimacs2(&mut self.solver, path, vars, strict)
+    #[track_caller]
+    pub fn read_dimacs2(&mut self, path: &str, vars: &mut i32, strict: i32) -> Result<(), String> {
+        self.require_state("read_dimacs2", State::CONFIGURING);
+        into_result(ffi::read_dimacs2(
+            &mut self.solver,
+            path.to_owned(),
+            vars,
+            strict,
+        ))
     }
 
     /// The following routines work the same way but parse both DIMACS and
@@ -1643,37 +1690,67 @@ impl CaDiCal {
     /// parser finds and 'p inccnf' header or cubes then '*incremental' is set
     /// to true and the cubes are stored in the given vector (each cube
     /// terminated by a zero).
+    ///
+    /// # Errors
+    ///
+    /// If the file cannot be opened or parsed.
+    ///
+    /// # Panics
+    ///
+    /// If the solver is not in the `CONFIGURING` state, i.e. clauses have
+    /// already been added. `CaDiCaL` would otherwise abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn read_dimacs3(
         &mut self,
-        file: String,
-        name: String,
+        file: &str,
+        name: &str,
         vars: &mut i32,
         strict: i32,
         incremental: &mut bool,
         cubes: &mut Vec<i32>,
-    ) -> String {
-        ffi::read_dimacs3(
+    ) -> Result<(), String> {
+        self.require_state("read_dimacs3", State::CONFIGURING);
+        into_result(ffi::read_dimacs3(
             &mut self.solver,
-            file,
-            name,
+            file.to_owned(),
+            name.to_owned(),
             vars,
             strict,
             incremental,
             cubes,
-        )
+        ))
     }
 
+    /// # Errors
+    ///
+    /// If the file cannot be opened or parsed.
+    ///
+    /// # Panics
+    ///
+    /// If the solver is not in the `CONFIGURING` state, i.e. clauses have
+    /// already been added. `CaDiCaL` would otherwise abort the process.
+    ///
     #[inline]
+    #[track_caller]
     pub fn read_dimacs4(
         &mut self,
-        path: String,
+        path: &str,
         vars: &mut i32,
         strict: i32,
         incremental: &mut bool,
         cubes: &mut Vec<i32>,
-    ) -> String {
-        ffi::read_dimacs4(&mut self.solver, path, vars, strict, incremental, cubes)
+    ) -> Result<(), String> {
+        self.require_state("read_dimacs4", State::CONFIGURING);
+        into_result(ffi::read_dimacs4(
+            &mut self.solver,
+            path.to_owned(),
+            vars,
+            strict,
+            incremental,
+            cubes,
+        ))
     }
 
     //------------------------------------------------------------------------
@@ -1684,29 +1761,45 @@ impl CaDiCal {
     /// The '`min_max_var`' parameter gives a lower bound on the number '<vars>'
     /// of variables used in the DIMACS 'p cnf <vars> ...' header.
     ///
-    /// Returns zero if successful and otherwise an error message.
+    /// Returns `Err` with `CaDiCaL`'s error message if unsuccessful.
     ///
     ///   require (VALID)
     ///   ensure (VALID)
     ///
+    /// # Errors
+    ///
+    /// If the file cannot be written.
+    ///
     #[inline]
-    pub fn write_dimacs(&mut self, path: String, min_max_var: i32) -> String {
-        ffi::write_dimacs(&mut self.solver, path, min_max_var)
+    pub fn write_dimacs(&mut self, path: &str, min_max_var: i32) -> Result<(), String> {
+        into_result(ffi::write_dimacs(
+            &mut self.solver,
+            path.to_owned(),
+            min_max_var,
+        ))
     }
 
     /// The extension stack for reconstruction a solution can be written too.
     ///
+    /// # Errors
+    ///
+    /// If the file cannot be written.
+    ///
     #[inline]
-    pub fn write_extension(&mut self, path: String) -> String {
-        ffi::write_extension(&mut self.solver, path)
+    pub fn write_extension(&mut self, path: &str) -> Result<(), String> {
+        into_result(ffi::write_extension(&mut self.solver, path.to_owned()))
     }
 
     /// Print build configuration to a file with prefix 'c '.  If the file
     /// is '<stdout>' or '<stderr>' then terminal color codes might be used.
     ///
+    /// # Errors
+    ///
+    /// If the file cannot be opened.
+    ///
     #[inline]
-    pub fn build(file: String, prefix: String) {
-        ffi::build(file, prefix);
+    pub fn build(file: &str, prefix: &str) -> Result<(), String> {
+        into_result(ffi::build(file.to_owned(), prefix.to_owned()))
     }
 }
 

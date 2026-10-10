@@ -778,7 +778,8 @@ pub mod ffi {
         /// Print build configuration to a file with prefix 'c '.  If the file
         /// is '<stdout>' or '<stderr>' then terminal color codes might be used.
         ///
-        pub fn build(file: String, prefix: String);
+        #[must_use]
+        pub fn build(file: String, prefix: String) -> String;
 
         // ****************************************************************************************
         // API for connected objects

@@ -82,10 +82,10 @@ cadical-sys = "0.1.0"  # Replace with most recent version
    let mut solver = CaDiCal::new();
 
    // Configure the solver
-   solver.configure("plain".to_string());
+   solver.configure("plain");
 
    // Set some options
-   solver.set("verbose".to_string(), 1);
+   solver.set("verbose", 1);
 
    // Add complex clauses
    solver.clause3(1, 2, 3);  // x1 OR x2 OR x3
@@ -116,19 +116,19 @@ cadical-sys = "0.1.0"  # Replace with most recent version
    let mut var_count = 0;
 
    // Read a DIMACS CNF file
-   let result = solver.read_dimacs1(
-       "./tests/problem.cnf".to_string(),
-       "my_problem".to_string(),
-       &mut var_count,
-       0
-   );
+   solver
+       .read_dimacs1("./tests/problem.cnf", "my_problem", &mut var_count, 0)
+       .expect("failed to read DIMACS file");
 
    // Solve the problem from the file
    let status = solver.solve();
 
    // Write out results or extension
    if status == Status::SATISFIABLE {
-       solver.write_extension("/tmp/solution.ext".to_string());
+       let path = std::env::temp_dir().join("solution.ext");
+       solver
+           .write_extension(path.to_str().unwrap())
+           .expect("failed to write extension");
    }
 ```
 
