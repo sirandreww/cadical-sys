@@ -2,7 +2,7 @@
 name = "cadical-sys"
 description = "Almost complete safe and unsafe bindings for the CaDiCal SAT solver. Made using the cxx crate and then wrapped in a safe 1 to 1 API."
 version = "0.7.0"
-edition = "2021"
+edition = "2024"
 license = "MIT"
 links = "cadical"
 repository = "https://github.com/sirandreww/cadical-sys.git"
@@ -12,11 +12,11 @@ keywords = ["cadical", "sat-solver", "bindings", "system-level", "safe"]
 readme = "README.md"
 
 [dependencies]
-cxx = "1.0"
+cxx = "1.0.204"
 
 [build-dependencies]
-cxx-build = "1.0"
+cxx-build = "1.0.204"
 
 [dev-dependencies]
-rand = "0.8.4"
-version-sync = "0.9"
+rand = "0.10.3"
+version-sync = "0.9.5"
