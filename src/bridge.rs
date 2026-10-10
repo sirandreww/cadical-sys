@@ -612,6 +612,7 @@ pub mod ffi {
             solver: &mut UniquePtr<Solver>,
             tracer: &mut UniquePtr<Tracer>,
             antecedents: bool,
+            finalize_clauses: bool,
         );
 
         /// Triggers the conclusion of incremental proofs.

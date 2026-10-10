@@ -179,7 +179,7 @@ fn terminate_flag_stops_solving() {
 fn shared_callback_state_is_readable_while_connected() {
     let tracer = Rc::new(RefCell::new(NoopTracer::default()));
     let mut solver = CaDiCal::new();
-    solver.connect_proof_tracer1(Rc::clone(&tracer), false);
+    solver.connect_proof_tracer1(Rc::clone(&tracer), false, false);
     solver.clause2(1, 2);
     solver.clause2(-1, 2);
     assert_eq!(solver.solve(), Status::SATISFIABLE);
@@ -191,8 +191,8 @@ fn replacing_a_proof_tracer_disconnects_the_old_one() {
     let first = Rc::new(RefCell::new(NoopTracer::default()));
     let second = Rc::new(RefCell::new(NoopTracer::default()));
     let mut solver = CaDiCal::new();
-    solver.connect_proof_tracer1(Rc::clone(&first), false);
-    solver.connect_proof_tracer1(Rc::clone(&second), false);
+    solver.connect_proof_tracer1(Rc::clone(&first), false, false);
+    solver.connect_proof_tracer1(Rc::clone(&second), false, false);
     assert_eq!(
         Rc::strong_count(&first),
         1,
@@ -212,7 +212,7 @@ fn dropping_a_solver_with_a_connected_proof_tracer() {
     let tracer = Rc::new(RefCell::new(NoopTracer::default()));
     {
         let mut solver = CaDiCal::new();
-        solver.connect_proof_tracer1(Rc::clone(&tracer), true);
+        solver.connect_proof_tracer1(Rc::clone(&tracer), true, false);
         add_pigeonhole(&mut solver, 3);
         assert_eq!(solver.solve(), Status::UNSATISFIABLE);
     }
@@ -293,7 +293,7 @@ fn flippable_with_external_propagator_panics() {
 fn connecting_a_proof_tracer_after_adding_clauses_panics() {
     let mut solver = CaDiCal::new();
     solver.clause1(1);
-    solver.connect_proof_tracer1(NoopTracer::default(), false);
+    solver.connect_proof_tracer1(NoopTracer::default(), false, false);
 }
 
 #[test]

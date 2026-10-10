@@ -91,7 +91,7 @@ impl ProofTracer for StatusTracer {
 fn tracer_is_told_about_each_solve_call() {
     let tracer = Rc::new(RefCell::new(StatusTracer::default()));
     let mut solver = CaDiCal::new();
-    solver.connect_proof_tracer1(Rc::clone(&tracer), true);
+    solver.connect_proof_tracer1(Rc::clone(&tracer), true, false);
     solver.clause2(1, 2);
     assert_eq!(solver.solve(), Status::SATISFIABLE);
     solver.clause1(-1);
