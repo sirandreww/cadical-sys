@@ -132,6 +132,39 @@ cadical-sys = "0.1.0"  # Replace with most recent version
    }
 ```
 
+## Callbacks
+
+The solver takes ownership of connected callbacks (terminators, learners,
+listeners, external propagators and proof tracers). To inspect a callback
+while it is connected, share it through an `Rc<RefCell<_>>`:
+
+```rust
+   use std::cell::RefCell;
+   use std::rc::Rc;
+   use cadical_sys::{CaDiCal, Learner};
+
+   #[derive(Default)]
+   struct CountLearned(usize);
+
+   impl Learner for CountLearned {
+       fn learning(&mut self, _size: i32) -> bool {
+           self.0 += 1;
+           false
+       }
+       fn learn(&mut self, _lit: i32) {}
+   }
+
+   let learner = Rc::new(RefCell::new(CountLearned::default()));
+   let mut solver = CaDiCal::new();
+   solver.connect_learner(Rc::clone(&learner));
+   solver.clause2(1, 2);
+   solver.clause2(-1, 2);
+   solver.clause2(1, -2);
+   solver.clause2(-1, -2);
+   solver.solve();
+   println!("learned {} clauses", learner.borrow().0);
+```
+
 ### Demonstrating advanced solver interactions
 ```rust
    use cadical_sys::CaDiCal;
