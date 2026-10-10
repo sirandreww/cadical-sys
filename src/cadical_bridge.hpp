@@ -5,9 +5,12 @@
 #pragma once
 #include "../cadical/src/cadical.hpp"
 #include "../cadical/src/tracer.hpp"
+#include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <vector>
 #include <string>
+#include <unistd.h>
 #include "rust/cxx.h"
 
 // ************************************************************************************************
@@ -472,11 +475,52 @@ void unphase(std::unique_ptr<Solver> &solver, int lit)
     return solver->unphase(lit);
 }
 
-// If CaDiCaL cannot open the proof file it still installs a proof tracer
-// with a null file and then crashes, so check that the file can be written
-// first.
+static bool _has_suffix(const char *str, const char *suffix)
+{
+    size_t length = strlen(str), suffix_length = strlen(suffix);
+    return length >= suffix_length && !strcmp(str + length - suffix_length, suffix);
+}
+
+// Whether an executable 'program' is in 'PATH' (like 'File::find_program').
+static bool _program_in_path(const char *program)
+{
+    const char *path = getenv("PATH");
+    if (path == NULL)
+    {
+        return false;
+    }
+    std::string dirs(path);
+    size_t start = 0;
+    while (true)
+    {
+        size_t end = dirs.find(':', start);
+        std::string dir = dirs.substr(start, end == std::string::npos ? std::string::npos : end - start);
+        std::string candidate = (dir.empty() ? std::string(".") : dir) + "/" + program;
+        if (access(candidate.c_str(), X_OK) == 0)
+        {
+            return true;
+        }
+        if (end == std::string::npos)
+        {
+            return false;
+        }
+        start = end + 1;
+    }
+}
+
+// If CaDiCaL cannot open the proof file, or cannot find the program it uses
+// to compress it, it still installs a proof tracer with a null file and then
+// crashes, so check both first.
 bool _trace_proof_to_path(std::unique_ptr<Solver> &solver, rust::String &path)
 {
+    const char *suffixes[][2] = {{".xz", "xz"}, {".bz2", "bzip2"}, {".gz", "gzip"}, {".7z", "7z"}};
+    for (auto &suffix : suffixes)
+    {
+        if (_has_suffix(path.c_str(), suffix[0]) && !_program_in_path(suffix[1]))
+        {
+            return false;
+        }
+    }
     FILE *fptr = fopen(path.c_str(), "w");
     if (fptr == NULL)
     {

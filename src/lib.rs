@@ -1357,9 +1357,10 @@ impl CaDiCal {
     ///   require (CONFIGURING)
     ///   ensure (CONFIGURING)
     ///
-    /// Write DRAT proof. `name` is only used in messages. As with
-    /// [`CaDiCal::trace_proof2`], a `.gz`, `.bz2`, `.xz` or `.7z` suffix
-    /// compresses the proof through an external program.
+    /// Write DRAT proof. `name` is ignored. As with [`CaDiCal::trace_proof2`],
+    /// a `.gz`, `.bz2`, `.xz` or `.7z` suffix compresses the proof through
+    /// the external program of that name, and `false` is returned if it is
+    /// not in `PATH`.
     ///
     /// # Panics
     ///
@@ -1375,7 +1376,9 @@ impl CaDiCal {
         opened
     }
 
-    /// Open & write proof.
+    /// Open & write proof. A `.gz`, `.bz2`, `.xz` or `.7z` suffix compresses
+    /// the proof through the external program of that name; `false` is
+    /// returned if it is not in `PATH` or the file cannot be written.
     ///
     /// # Panics
     ///
