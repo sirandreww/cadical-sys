@@ -800,8 +800,15 @@ impl CaDiCal {
     ///   require (READY)
     ///   ensure (STEADY |SATISFIED|UNSATISFIED)
     ///
+    /// # Panics
+    ///
+    /// If the solver is in the middle of adding a clause or constraint (not
+    /// READY), which `CaDiCaL` would silently cut short.
+    ///
     #[inline]
+    #[track_caller]
     pub fn lookahead(&mut self) -> i32 {
+        self.require_ready("lookahead");
         ffi::lookahead(&mut self.solver)
     }
 
@@ -952,8 +959,15 @@ impl CaDiCal {
     ///   require (READY)
     ///   ensure (STEADY )
     ///
+    /// # Panics
+    ///
+    /// If the solver is in the middle of adding a clause or constraint (not
+    /// READY), which `CaDiCaL` would silently cut short.
+    ///
     #[inline]
+    #[track_caller]
     pub fn resize(&mut self, min_max_var: i32) {
+        self.require_ready("resize");
         ffi::resize(&mut self.solver, min_max_var);
     }
 
@@ -968,15 +982,37 @@ impl CaDiCal {
     ///   require (READY)
     ///   ensure (STEADY)
     ///
+    /// # Panics
+    ///
+    /// If the solver is in the middle of adding a clause or constraint (not
+    /// READY), which `CaDiCaL` would silently cut short, or if
+    /// `number_of_additional_new_vars` is negative or would overflow the
+    /// variable index.
+    ///
     #[inline]
+    #[track_caller]
     pub fn declare_more_variables(&mut self, number_of_additional_new_vars: i32) -> i32 {
+        self.require_ready("declare_more_variables");
+        let vars = self.vars();
+        assert!(
+            number_of_additional_new_vars >= 0
+                && vars.checked_add(number_of_additional_new_vars).is_some(),
+            "declare_more_variables called with {number_of_additional_new_vars} variables, but {vars} already exist"
+        );
         ffi::declare_more_variables(&mut self.solver, number_of_additional_new_vars)
     }
 
     /// Returns the next fresh variable that was not used internally.
     ///
+    /// # Panics
+    ///
+    /// If the solver is in the middle of adding a clause or constraint (not
+    /// READY), which `CaDiCaL` would silently cut short.
+    ///
     #[inline]
+    #[track_caller]
     pub fn declare_one_more_variable(&mut self) -> i32 {
+        self.require_ready("declare_one_more_variable");
         ffi::declare_one_more_variable(&mut self.solver)
     }
 
@@ -1218,8 +1254,15 @@ impl CaDiCal {
     ///   require (READY)
     ///   ensure (INCONCLUSIVE | SATISFIED | UNSATISFIED)
     ///
+    /// # Panics
+    ///
+    /// If the solver is in the middle of adding a clause or constraint (not
+    /// READY), which `CaDiCaL` would silently cut short.
+    ///
     #[inline]
+    #[track_caller]
     pub fn propagate(&mut self) -> Status {
+        self.require_ready("propagate");
         ffi::propagate(&mut self.solver).into()
     }
 

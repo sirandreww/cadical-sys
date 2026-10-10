@@ -428,6 +428,22 @@ fn melting_twice_after_one_freeze_panics() {
 }
 
 #[test]
+#[should_panic(expected = "propagate requires the solver to be READY")]
+fn propagating_in_the_middle_of_a_clause_panics() {
+    let mut solver = CaDiCal::new();
+    solver.add(1);
+    solver.propagate();
+}
+
+#[test]
+#[should_panic(expected = "declare_more_variables called with 2147483647 variables")]
+fn declaring_too_many_variables_panics() {
+    let mut solver = CaDiCal::new();
+    solver.clause1(1);
+    solver.declare_more_variables(i32::MAX);
+}
+
+#[test]
 fn guarded_functions_work_in_the_right_state() {
     let mut solver = CaDiCal::new();
     solver.clause2(1, 2);
