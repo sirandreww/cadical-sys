@@ -665,6 +665,11 @@ rust::String write_extension(std::unique_ptr<Solver> &solver, rust::String path)
 
 rust::String build(rust::String file, rust::String prefix)
 {
+    if (!strcmp(file.c_str(), "<stdout>") || !strcmp(file.c_str(), "<stderr>"))
+    {
+        Solver::build(!strcmp(file.c_str(), "<stdout>") ? stdout : stderr, prefix.c_str());
+        return rust::String();
+    }
     FILE *fptr = fopen(file.c_str(), "w+");
     if (fptr == NULL)
     {
