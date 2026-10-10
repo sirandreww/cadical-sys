@@ -163,6 +163,43 @@
 //!    println!("learned {} clauses", learner.borrow().0);
 //! ```
 //!
+//! Callbacks run inside the solver's C++ code. A panic in a callback cannot
+//! unwind through it, so it aborts the process. In particular, don't hold a
+//! `borrow()` of a shared callback while calling into the solver.
+//!
+//! To stop a long-running `solve` from another thread, connect a
+//! `TerminateFlag`:
+//!
+//! ```rust
+//!    use std::{thread, time::Duration};
+//!    use cadical_sys::{CaDiCal, Status, TerminateFlag};
+//!
+//!    let flag = TerminateFlag::new();
+//!    let mut solver = CaDiCal::new();
+//!    solver.connect_terminator(flag.clone());
+//!
+//!    // 11 pigeons in 10 holes: unsatisfiable, but hard for CDCL solvers.
+//!    let var = |pigeon: i32, hole: i32| pigeon * 10 + hole + 1;
+//!    for pigeon in 0..11 {
+//!        let clause: Vec<i32> = (0..10).map(|hole| var(pigeon, hole)).collect();
+//!        solver.clause6(&clause);
+//!    }
+//!    for hole in 0..10 {
+//!        for p in 0..11 {
+//!            for q in p + 1..11 {
+//!                solver.clause2(-var(p, hole), -var(q, hole));
+//!            }
+//!        }
+//!    }
+//!
+//!    let stopper = flag.clone();
+//!    thread::spawn(move || {
+//!        thread::sleep(Duration::from_millis(100));
+//!        stopper.terminate();
+//!    });
+//!    assert_eq!(solver.solve(), Status::UNKNOWN);
+//! ```
+//!
 //! ## Demonstrating advanced solver interactions
 //! ```rust
 //!    use cadical_sys::CaDiCal;
@@ -215,6 +252,8 @@ use cxx::memory::UniquePtrTarget;
 use cxx::UniquePtr;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 // Compile and run the README examples as doctests so they cannot go stale.
 #[cfg(doctest)]
@@ -366,6 +405,12 @@ impl<W: UniquePtrTarget> Drop for Connected<W> {
 /// [`CaDiCal::add`] and [`CaDiCal::constrain`], where `0` ends the clause), and
 /// methods with a state precondition panic when it does not hold. `CaDiCaL`
 /// itself would abort the whole process in both cases.
+///
+/// One case is not checked: with the `factor` option (off by default) the
+/// solver adds extension variables of its own, and passing one of those to a
+/// method that takes a literal still aborts. Use
+/// [`CaDiCal::declare_more_variables`] to reserve variables that the solver
+/// will not use for this.
 pub struct CaDiCal {
     // Declared first so the solver is destroyed before the callbacks it may call.
     solver: UniquePtr<ffi::Solver>,
@@ -2147,6 +2192,40 @@ impl CaDiCal {
 /// terminated synchronously as soon it calls this function.
 pub trait Terminator {
     fn terminated(&mut self) -> bool;
+}
+
+/// A [`Terminator`] that can be triggered from any thread, e.g. to stop a
+/// long-running [`CaDiCal::solve`] after a timeout. Clones share the same flag.
+#[derive(Debug, Clone, Default)]
+pub struct TerminateFlag(Arc<AtomicBool>);
+
+impl TerminateFlag {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Ask the solver to stop as soon as possible; `solve` then returns
+    /// [`Status::UNKNOWN`].
+    pub fn terminate(&self) {
+        self.0.store(true, Ordering::Relaxed);
+    }
+
+    /// Clear the flag so that the solver can be used again.
+    pub fn reset(&self) {
+        self.0.store(false, Ordering::Relaxed);
+    }
+
+    #[must_use]
+    pub fn is_terminated(&self) -> bool {
+        self.0.load(Ordering::Relaxed)
+    }
+}
+
+impl Terminator for TerminateFlag {
+    fn terminated(&mut self) -> bool {
+        self.is_terminated()
+    }
 }
 
 /// Connected learners which can be used to export learned clauses.
