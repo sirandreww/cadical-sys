@@ -224,14 +224,14 @@ fn test_proof_tracer_sat_case() {
     solver.connect_proof_tracer1(Rc::clone(&proof_tracer), true);
     add_sat_test_cnf(&mut solver);
 
-    // Just test that we can add clauses without crashing
-    // The actual solving might cause issues due to the unsafe pointer operations
     let result = solver.solve();
     assert_eq!(result, Status::SATISFIABLE);
     solver.disconnect_proof_tracer1();
 
-    // Note: We can't safely check the tracer state here due to the unsafe pointer operations
-    // The proof tracer functionality is complex and requires careful lifetime management
+    assert!(
+        !proof_tracer.borrow().get_original_clauses().is_empty(),
+        "the tracer should see the original clauses"
+    );
 }
 
 #[test]
@@ -247,8 +247,10 @@ fn test_proof_tracer_unsat_case() {
     assert_eq!(result, Status::UNSATISFIABLE);
     solver.disconnect_proof_tracer1();
 
-    // Note: We can't safely check the tracer state here due to the unsafe pointer operations
-    // The proof tracer functionality is complex and requires careful lifetime management
+    assert!(
+        !proof_tracer.borrow().get_original_clauses().is_empty(),
+        "the tracer should see the original clauses"
+    );
 }
 
 #[test]
@@ -264,8 +266,10 @@ fn test_proof_tracer_unit_clauses() {
     assert_eq!(result, Status::SATISFIABLE);
     solver.disconnect_proof_tracer1();
 
-    // Note: We can't safely check the tracer state here due to the unsafe pointer operations
-    // The proof tracer functionality is complex and requires careful lifetime management
+    assert!(
+        !proof_tracer.borrow().get_original_clauses().is_empty(),
+        "the tracer should see the original clauses"
+    );
 }
 
 #[test]
@@ -282,8 +286,10 @@ fn test_proof_tracer_disconnect_prevents_notifications() {
     let result = solver.solve();
     assert_eq!(result, Status::SATISFIABLE);
 
-    // Note: We can't safely check the tracer state here due to the unsafe pointer operations
-    // The proof tracer functionality is complex and requires careful lifetime management
+    assert!(
+        proof_tracer.borrow().get_original_clauses().is_empty(),
+        "a disconnected tracer should not see any clauses"
+    );
 }
 
 #[test]
@@ -301,8 +307,10 @@ fn test_proof_tracer_reconnect() {
     assert_eq!(result, Status::SATISFIABLE);
     solver.disconnect_proof_tracer1();
 
-    // Note: We can't safely check the tracer state here due to the unsafe pointer operations
-    // The proof tracer functionality is complex and requires careful lifetime management
+    assert!(
+        !proof_tracer.borrow().get_original_clauses().is_empty(),
+        "the tracer should see the original clauses"
+    );
 }
 
 #[test]
@@ -318,8 +326,10 @@ fn test_proof_tracer_empty_cnf() {
     assert_eq!(result, Status::SATISFIABLE);
     solver.disconnect_proof_tracer1();
 
-    // Note: We can't safely check the tracer state here due to the unsafe pointer operations
-    // The proof tracer functionality is complex and requires careful lifetime management
+    assert!(
+        proof_tracer.borrow().get_original_clauses().is_empty(),
+        "there are no original clauses"
+    );
 }
 
 #[test]
