@@ -173,8 +173,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      # build.rs links libc++ when the compiler is clang
-      - run: sudo apt-get update && sudo apt-get install -y libc++-dev libc++abi-dev
       # make sure the override took effect
       - run: $CXX --version
       - run: cargo test --verbose
