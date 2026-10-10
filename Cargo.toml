@@ -1,7 +1,7 @@
 [package]
 name = "cadical-sys"
 description = "Safe bindings for the CaDiCaL SAT solver, made with the cxx crate and wrapped in a 1 to 1 API."
-version = "0.7.0"
+version = "0.8.0"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
