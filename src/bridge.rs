@@ -347,6 +347,39 @@ pub mod ffi {
         ///
         pub fn resize(solver: &mut UniquePtr<Solver>, min_max_var: i32);
 
+        /// Increase the maximum variable index by a number of new variables.
+        /// Returns the new maximum variable index.
+        ///
+        ///   require (READY)
+        ///   ensure (STEADY)
+        ///
+        pub fn declare_more_variables(
+            solver: &mut UniquePtr<Solver>,
+            number_of_additional_new_vars: i32,
+        ) -> i32;
+
+        /// Returns the next fresh variable that was not used internally.
+        pub fn declare_one_more_variable(solver: &mut UniquePtr<Solver>) -> i32;
+
+        /// Get the value of some statistics or -1 if the statistics does not
+        /// exist or is not supported.
+        #[must_use]
+        pub fn get_statistic_value(solver: &UniquePtr<Solver>, name: String) -> i64;
+
+        /// Unit propagation under the current assumptions.
+        ///
+        ///   require (READY)
+        ///   ensure (INCONCLUSIVE | SATISFIED | UNSATISFIED)
+        ///
+        pub fn propagate(solver: &mut UniquePtr<Solver>) -> i32;
+
+        /// The literals implied by the last 'propagate'.
+        ///
+        ///   require (INCONCLUSIVE)
+        ///   ensure (INCONCLUSIVE)
+        ///
+        pub fn implied(solver: &mut UniquePtr<Solver>, implicants: &mut Vec<i32>);
+
         /// pub fn trace_api_calls(solver: &mut UniquePtr<Solver>, file: String);
 
         //------------------------------------------------------------------------
@@ -912,6 +945,11 @@ pub mod ffi {
             conclude_sat: unsafe fn(*mut u8, i32, &[i32]),
             conclude_unsat: unsafe fn(*mut u8, i32, &[i64]),
             conclude_unknown: unsafe fn(*mut u8, &[i32]),
+            demote_clause: unsafe fn(*mut u8, i64, &[i32]),
+            report_status: unsafe fn(*mut u8, i32, i64),
+            begin_proof: unsafe fn(*mut u8, i64),
+            solve_query: unsafe fn(*mut u8),
+            notify_equivalence: unsafe fn(*mut u8, i32, i32),
         ) -> UniquePtr<Tracer>;
     }
 }
