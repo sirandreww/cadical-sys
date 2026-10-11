@@ -468,8 +468,9 @@ fn declared_variables_with_factor_checks() {
 fn cloning_with_factor_checks_panics() {
     let mut solver = CaDiCal::new();
     assert!(solver.set("factorcheck", 2));
-    solver.declare_more_variables(1);
-    solver.clause1(1);
+    solver.declare_more_variables(2);
+    // A unit clause would be copied as a witness, without 'add'.
+    solver.clause2(1, 2);
     let _ = solver.clone();
 }
 
@@ -479,6 +480,32 @@ fn assuming_in_the_middle_of_a_clause_panics() {
     let mut solver = CaDiCal::new();
     solver.add(1);
     solver.assume(2);
+}
+
+#[test]
+fn reading_dimacs_options_updates_factor_checks() {
+    let path = temp_path("factorcheck.cnf");
+    std::fs::write(&path, "c --factorcheck=2\np cnf 2 1\n1 2 0\n").unwrap();
+    let mut solver = CaDiCal::new();
+    let mut vars = 0;
+    assert_eq!(solver.read_dimacs2(&path, &mut vars, 0), Ok(()));
+    std::fs::remove_file(&path).unwrap();
+    assert_eq!(solver.get("factorcheck"), 2);
+    // Variable 3 was not declared, so this must panic rather than abort.
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| solver.clause1(3)));
+    assert!(result.is_err(), "adding an undeclared variable should panic");
+}
+
+#[test]
+fn cloning_an_inconsistent_solver_with_factor_checks() {
+    let mut solver = CaDiCal::new();
+    assert!(solver.set("factorcheck", 2));
+    solver.declare_more_variables(1);
+    solver.clause1(1);
+    solver.clause1(-1);
+    assert_eq!(solver.solve(), Status::UNSATISFIABLE);
+    let mut clone = solver.clone();
+    assert_eq!(clone.solve(), Status::UNSATISFIABLE);
 }
 
 #[test]
