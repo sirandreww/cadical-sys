@@ -63,6 +63,9 @@ fn compile_cadical() {
     println!("cargo:rerun-if-changed=src/lib.rs");
     println!("cargo:rerun-if-changed=src/bridge.rs");
     println!("cargo:rerun-if-changed=build.rs");
+    // Headers and the version, which is compiled in as VERSION.
+    println!("cargo:rerun-if-changed={CADICAL_PATH}/src");
+    println!("cargo:rerun-if-changed={CADICAL_PATH}/VERSION");
 
     // Standard build environment vars
     println!("cargo:rerun-if-env-changed=CC");
