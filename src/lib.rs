@@ -848,13 +848,27 @@ impl CaDiCal {
         ffi::generate_cubes(&mut self.solver, x, min_depth, result_cubes)
     }
 
+    /// # Panics
+    ///
+    /// If the solver is in the middle of adding a clause or constraint (not
+    /// READY), which `CaDiCaL` would silently cut short.
+    ///
     #[inline]
+    #[track_caller]
     pub fn reset_assumptions(&mut self) {
+        self.require_ready("reset_assumptions");
         ffi::reset_assumptions(&mut self.solver);
     }
 
+    /// # Panics
+    ///
+    /// If the solver is in the middle of adding a clause or constraint (not
+    /// READY), which `CaDiCaL` would silently cut short.
+    ///
     #[inline]
+    #[track_caller]
     pub fn reset_constraint(&mut self) {
+        self.require_ready("reset_constraint");
         ffi::reset_constraint(&mut self.solver);
     }
 
@@ -983,7 +997,7 @@ impl CaDiCal {
     ///
     /// If `source` is not READY (e.g. a clause was started with
     /// [`CaDiCal::add`] but not terminated), if `destination` is not in the
-    /// `CONFIGURING` state, or if `source` has clauses and the `factor` or
+    /// `CONFIGURING` state, or if `source` has non-unit clauses and the `factor` or
     /// `factorcheck` options require declared variables (the copy would add
     /// them before declaring any). `CaDiCaL` would otherwise abort the process.
     ///
@@ -993,11 +1007,13 @@ impl CaDiCal {
         source.require_ready("copy");
         destination.require_state("copy", State::CONFIGURING);
         if source.declared_vars_only {
-            // Traversal is aborted (returns false) at the first clause.
+            // Traversal is aborted (returns false) at the first non-empty
+            // clause. Units are copied as witnesses and the empty clause of
+            // an inconsistent solver has no literals, so neither is a problem.
             struct StopAtFirstClause;
             impl ClauseIterator for StopAtFirstClause {
-                fn clause(&mut self, _: &[i32]) -> bool {
-                    false
+                fn clause(&mut self, clause: &[i32]) -> bool {
+                    clause.is_empty()
                 }
             }
             assert!(
@@ -1951,13 +1967,16 @@ impl CaDiCal {
         strict: i32,
     ) -> Result<(), String> {
         self.require_state("read_dimacs1", State::CONFIGURING);
-        into_result(ffi::read_dimacs1(
+        let res = ffi::read_dimacs1(
             &mut self.solver,
             file.to_owned(),
             name.to_owned(),
             vars,
             strict,
-        ))
+        );
+        // 'c --option' lines in the header set options from C++.
+        self.update_declared_vars_only();
+        into_result(res)
     }
 
     /// # Errors
@@ -1973,12 +1992,10 @@ impl CaDiCal {
     #[track_caller]
     pub fn read_dimacs2(&mut self, path: &str, vars: &mut i32, strict: i32) -> Result<(), String> {
         self.require_state("read_dimacs2", State::CONFIGURING);
-        into_result(ffi::read_dimacs2(
-            &mut self.solver,
-            path.to_owned(),
-            vars,
-            strict,
-        ))
+        let res = ffi::read_dimacs2(&mut self.solver, path.to_owned(), vars, strict);
+        // 'c --option' lines in the header set options from C++.
+        self.update_declared_vars_only();
+        into_result(res)
     }
 
     /// The following routines work the same way but parse both DIMACS and
@@ -2008,7 +2025,7 @@ impl CaDiCal {
         cubes: &mut Vec<i32>,
     ) -> Result<(), String> {
         self.require_state("read_dimacs3", State::CONFIGURING);
-        into_result(ffi::read_dimacs3(
+        let res = ffi::read_dimacs3(
             &mut self.solver,
             file.to_owned(),
             name.to_owned(),
@@ -2016,7 +2033,10 @@ impl CaDiCal {
             strict,
             incremental,
             cubes,
-        ))
+        );
+        // 'c --option' lines in the header set options from C++.
+        self.update_declared_vars_only();
+        into_result(res)
     }
 
     /// # Errors
@@ -2039,14 +2059,17 @@ impl CaDiCal {
         cubes: &mut Vec<i32>,
     ) -> Result<(), String> {
         self.require_state("read_dimacs4", State::CONFIGURING);
-        into_result(ffi::read_dimacs4(
+        let res = ffi::read_dimacs4(
             &mut self.solver,
             path.to_owned(),
             vars,
             strict,
             incremental,
             cubes,
-        ))
+        );
+        // 'c --option' lines in the header set options from C++.
+        self.update_declared_vars_only();
+        into_result(res)
     }
 
     //------------------------------------------------------------------------
