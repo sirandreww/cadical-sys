@@ -167,6 +167,10 @@ impl<W: UniquePtrTarget> Drop for Connected<W> {
 /// variables of its own, and passing one of those to a method that takes a
 /// literal still aborts.
 ///
+/// `CaDiCaL`'s own checking options, e.g. `checkfrozen` (which makes reusing
+/// a variable that was not frozen across `solve` calls fatal), abort the
+/// process when their check fails; that is what they are for.
+///
 /// `CaDiCaL` reads options from `CADICAL_<OPTION>` environment variables. The
 /// debugging variable `CADICAL_LIDRUP_TRACE` makes every solver write a proof
 /// to the given file, and `CaDiCaL` aborts the process when a second solver
