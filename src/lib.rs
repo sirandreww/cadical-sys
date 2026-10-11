@@ -154,11 +154,12 @@ impl<W: UniquePtrTarget> Drop for Connected<W> {
 /// methods with a state precondition panic when it does not hold. `CaDiCaL`
 /// itself would abort the whole process in both cases.
 ///
-/// One case is not checked: with the `factor` option (off by default) the
-/// solver adds extension variables of its own, and passing one of those to a
-/// method that takes a literal still aborts. Use
-/// [`CaDiCal::declare_more_variables`] to reserve variables that the solver
-/// will not use for this.
+/// With the `factor` option (off by default), or `factorcheck` set to 2,
+/// clauses may only use variables declared with
+/// [`CaDiCal::declare_more_variables`] (or [`CaDiCal::resize`]); adding others
+/// panics. One case is not checked: with `factor` the solver adds extension
+/// variables of its own, and passing one of those to a method that takes a
+/// literal still aborts.
 pub struct CaDiCal {
     // Declared first so the solver is destroyed before the callbacks it may call.
     solver: UniquePtr<ffi::Solver>,
@@ -172,6 +173,10 @@ pub struct CaDiCal {
     // Whether a proof file was closed. CaDiCaL then closes it again (and
     // crashes) when a later proof file is closed, so no new one may be opened.
     proof_file_closed: bool,
+    // Whether CaDiCaL requires literals of added clauses to be declared
+    // (options `factor` and `factorcheck`); options only change while
+    // CONFIGURING, through `set`, `set_long_option`, `configure` and `copy`.
+    declared_vars_only: bool,
 }
 
 /// Cloning copies the formula and options (see [`CaDiCal::copy`]) but not any
@@ -212,6 +217,7 @@ impl CaDiCal {
             last_tracer: None,
             proof_file_open: false,
             proof_file_closed: false,
+            declared_vars_only: false,
         }
     }
 
@@ -232,6 +238,9 @@ impl CaDiCal {
     #[track_caller]
     pub fn add(&mut self, lit: i32) {
         require_valid_lit_or_zero("add", lit);
+        if lit != 0 {
+            self.require_declared("add", lit);
+        }
         ffi::add(&mut self.solver, lit);
     }
 
@@ -245,6 +254,7 @@ impl CaDiCal {
     #[track_caller]
     pub fn clause1(&mut self, l1: i32) {
         require_valid_lit("clause1", l1);
+        self.require_declared("clause1", l1);
         ffi::clause1(&mut self.solver, l1);
     }
 
@@ -253,6 +263,7 @@ impl CaDiCal {
     pub fn clause2(&mut self, l1: i32, l2: i32) {
         for lit in [l1, l2] {
             require_valid_lit("clause2", lit);
+            self.require_declared("clause2", lit);
         }
         ffi::clause2(&mut self.solver, l1, l2);
     }
@@ -262,6 +273,7 @@ impl CaDiCal {
     pub fn clause3(&mut self, l1: i32, l2: i32, l3: i32) {
         for lit in [l1, l2, l3] {
             require_valid_lit("clause3", lit);
+            self.require_declared("clause3", lit);
         }
         ffi::clause3(&mut self.solver, l1, l2, l3);
     }
@@ -271,6 +283,7 @@ impl CaDiCal {
     pub fn clause4(&mut self, l1: i32, l2: i32, l3: i32, l4: i32) {
         for lit in [l1, l2, l3, l4] {
             require_valid_lit("clause4", lit);
+            self.require_declared("clause4", lit);
         }
         ffi::clause4(&mut self.solver, l1, l2, l3, l4);
     }
@@ -280,6 +293,7 @@ impl CaDiCal {
     pub fn clause5(&mut self, l1: i32, l2: i32, l3: i32, l4: i32, l5: i32) {
         for lit in [l1, l2, l3, l4, l5] {
             require_valid_lit("clause5", lit);
+            self.require_declared("clause5", lit);
         }
         ffi::clause5(&mut self.solver, l1, l2, l3, l4, l5);
     }
@@ -289,6 +303,7 @@ impl CaDiCal {
     pub fn clause6(&mut self, v: &[i32]) {
         for &lit in v {
             require_valid_lit("clause6", lit);
+            self.require_declared("clause6", lit);
         }
         ffi::clause6(&mut self.solver, v);
     }
@@ -893,6 +908,23 @@ impl CaDiCal {
         );
     }
 
+    fn update_declared_vars_only(&mut self) {
+        let factorcheck = self.get("factorcheck");
+        let factor = self.get("factor");
+        self.declared_vars_only = factorcheck == 2 || (factorcheck == 1 && factor != 0);
+    }
+
+    #[track_caller]
+    fn require_declared(&mut self, function: &str, lit: i32) {
+        if self.declared_vars_only {
+            let vars = self.vars();
+            assert!(
+                lit.unsigned_abs() <= vars.unsigned_abs(),
+                "{function} called with literal {lit} of an undeclared variable (only {vars} are declared, see declare_more_variables), which the 'factor'/'factorcheck' options forbid"
+            );
+        }
+    }
+
     #[track_caller]
     fn require_no_closed_proof_file(&self, function: &str) {
         assert!(
@@ -949,15 +981,31 @@ impl CaDiCal {
     /// # Panics
     ///
     /// If `source` is not READY (e.g. a clause was started with
-    /// [`CaDiCal::add`] but not terminated) or `destination` is not in the
-    /// `CONFIGURING` state. `CaDiCaL` would otherwise abort the process.
+    /// [`CaDiCal::add`] but not terminated), if `destination` is not in the
+    /// `CONFIGURING` state, or if `source` has clauses and the `factor` or
+    /// `factorcheck` options require declared variables (the copy would add
+    /// them before declaring any). `CaDiCaL` would otherwise abort the process.
     ///
     #[inline]
     #[track_caller]
     pub fn copy(source: &CaDiCal, destination: &mut CaDiCal) {
         source.require_ready("copy");
         destination.require_state("copy", State::CONFIGURING);
+        if source.declared_vars_only {
+            // Traversal is aborted (returns false) at the first clause.
+            struct StopAtFirstClause;
+            impl ClauseIterator for StopAtFirstClause {
+                fn clause(&mut self, _: &[i32]) -> bool {
+                    false
+                }
+            }
+            assert!(
+                source.traverse_clauses(&mut StopAtFirstClause),
+                "copy cannot copy clauses while the 'factor'/'factorcheck' options require declared variables"
+            );
+        }
         ffi::copy(&source.solver, &mut destination.solver);
+        destination.declared_vars_only = source.declared_vars_only;
     }
 
     /*----------------------------------------------------------------------*/
@@ -1123,7 +1171,9 @@ impl CaDiCal {
         if !matches!(name, "log" | "quiet" | "report" | "verbose") {
             self.require_state("set", State::CONFIGURING);
         }
-        ffi::set(&mut self.solver, name.to_owned(), val)
+        let res = ffi::set(&mut self.solver, name.to_owned(), val);
+        self.update_declared_vars_only();
+        res
     }
 
     /// This function accepts options in command line syntax:
@@ -1147,7 +1197,9 @@ impl CaDiCal {
     #[track_caller]
     pub fn set_long_option(&mut self, arg: &str) -> bool {
         self.require_state("set_long_option", State::CONFIGURING);
-        ffi::set_long_option(&mut self.solver, arg.to_owned())
+        let res = ffi::set_long_option(&mut self.solver, arg.to_owned());
+        self.update_declared_vars_only();
+        res
     }
 
     /// Determine whether 'name' is a valid configuration.
@@ -1172,7 +1224,9 @@ impl CaDiCal {
     #[track_caller]
     pub fn configure(&mut self, name: &str) -> bool {
         self.require_state("configure", State::CONFIGURING);
-        ffi::configure(&mut self.solver, name.to_owned())
+        let res = ffi::configure(&mut self.solver, name.to_owned());
+        self.update_declared_vars_only();
+        res
     }
 
     /// Increase preprocessing and inprocessing limits by `10^<val>`.  Values
