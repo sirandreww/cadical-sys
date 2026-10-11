@@ -482,8 +482,9 @@ static bool _has_suffix(const char *str, const char *suffix)
 }
 
 // Whether CaDiCaL's 'File::find_program' finds 'program': it looks for an
-// existing '<dir>/<program>' for each ':'-separated 'PATH' entry, where an
-// empty entry gives '/<program>' and a trailing empty entry is skipped.
+// existing, readable '<dir>/<program>' (see 'File::exists') for each
+// ':'-separated 'PATH' entry, where an empty entry gives '/<program>' and a
+// trailing empty entry is skipped.
 static bool _program_in_path(const char *program)
 {
     const char *path = getenv("PATH");
@@ -501,7 +502,7 @@ static bool _program_in_path(const char *program)
             end = dirs.size();
         }
         std::string candidate = dirs.substr(start, end - start) + "/" + program;
-        if (access(candidate.c_str(), F_OK) == 0)
+        if (access(candidate.c_str(), R_OK) == 0)
         {
             return true;
         }

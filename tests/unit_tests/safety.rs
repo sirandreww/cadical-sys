@@ -493,7 +493,21 @@ fn reading_dimacs_options_updates_factor_checks() {
     assert_eq!(solver.get("factorcheck"), 2);
     // Variable 3 was not declared, so this must panic rather than abort.
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| solver.clause1(3)));
-    assert!(result.is_err(), "adding an undeclared variable should panic");
+    assert!(
+        result.is_err(),
+        "adding an undeclared variable should panic"
+    );
+}
+
+#[test]
+#[should_panic(expected = "copy cannot copy clauses while the 'factor'/'factorcheck' options")]
+fn copying_into_a_solver_with_factor_checks_panics() {
+    // The destination keeps its own options where the source has defaults.
+    let mut source = CaDiCal::new();
+    source.clause2(1, 2);
+    let mut destination = CaDiCal::new();
+    assert!(destination.set("factorcheck", 2));
+    CaDiCal::copy(&source, &mut destination);
 }
 
 #[test]

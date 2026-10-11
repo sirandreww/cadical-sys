@@ -32,6 +32,12 @@ fn require_valid_lit(function: &str, lit: i32) {
     );
 }
 
+/// Whether `CaDiCaL` requires the variables of added clauses to be declared
+/// (see `Solver::add`).
+fn requires_declared_vars(factor: i32, factorcheck: i32) -> bool {
+    factorcheck == 2 || (factorcheck == 1 && factor != 0)
+}
+
 /// Like [`require_valid_lit`] for functions where zero terminates a clause.
 #[track_caller]
 fn require_valid_lit_or_zero(function: &str, lit: i32) {
@@ -173,10 +179,12 @@ pub struct CaDiCal {
     // Whether a proof file was closed. CaDiCaL then closes it again (and
     // crashes) when a later proof file is closed, so no new one may be opened.
     proof_file_closed: bool,
-    // Whether CaDiCaL requires literals of added clauses to be declared
-    // (options `factor` and `factorcheck`); options only change while
-    // CONFIGURING, through `set`, `set_long_option`, `configure` and `copy`.
-    declared_vars_only: bool,
+    // The `factor` and `factorcheck` options, which decide whether CaDiCaL
+    // requires the variables of added clauses to be declared. Options only
+    // change while CONFIGURING, through `set`, `set_long_option`, `configure`,
+    // `read_dimacs*` and `copy`, which update these.
+    factor_option: i32,
+    factorcheck_option: i32,
 }
 
 /// Cloning copies the formula and options (see [`CaDiCal::copy`]) but not any
@@ -217,7 +225,8 @@ impl CaDiCal {
             last_tracer: None,
             proof_file_open: false,
             proof_file_closed: false,
-            declared_vars_only: false,
+            factor_option: 0,
+            factorcheck_option: 1,
         }
     }
 
@@ -924,14 +933,17 @@ impl CaDiCal {
     }
 
     fn update_declared_vars_only(&mut self) {
-        let factorcheck = self.get("factorcheck");
-        let factor = self.get("factor");
-        self.declared_vars_only = factorcheck == 2 || (factorcheck == 1 && factor != 0);
+        self.factor_option = self.get("factor");
+        self.factorcheck_option = self.get("factorcheck");
+    }
+
+    fn declared_vars_only(&self) -> bool {
+        requires_declared_vars(self.factor_option, self.factorcheck_option)
     }
 
     #[track_caller]
     fn require_declared(&mut self, function: &str, lit: i32) {
-        if self.declared_vars_only {
+        if self.declared_vars_only() {
             let vars = self.vars();
             assert!(
                 lit.unsigned_abs() <= vars.unsigned_abs(),
@@ -993,23 +1005,41 @@ impl CaDiCal {
     ///   other.require (CONFIGURING)
     ///   other.ensure (CONFIGURING | STEADY )
     ///
+    /// A pending constraint (see [`CaDiCal::constrain`]) is copied as an
+    /// ordinary, permanent clause.
+    ///
     /// # Panics
     ///
     /// If `source` is not READY (e.g. a clause was started with
     /// [`CaDiCal::add`] but not terminated), if `destination` is not in the
-    /// `CONFIGURING` state, or if `source` has non-unit clauses and the `factor` or
-    /// `factorcheck` options require declared variables (the copy would add
-    /// them before declaring any). `CaDiCaL` would otherwise abort the process.
+    /// `CONFIGURING` state, or if `source` has clauses (including frozen units)
+    /// and the `factor` or `factorcheck` options of either solver require
+    /// declared variables (the copy would add them before declaring any).
+    /// `CaDiCaL` would otherwise abort the process.
     ///
     #[inline]
     #[track_caller]
     pub fn copy(source: &CaDiCal, destination: &mut CaDiCal) {
         source.require_ready("copy");
         destination.require_state("copy", State::CONFIGURING);
-        if source.declared_vars_only {
+        // `Options::copy` only overwrites the destination's options where the
+        // source's differ from the defaults (`factor` 0, `factorcheck` 1).
+        let factor = if source.factor_option == 0 {
+            destination.factor_option
+        } else {
+            source.factor_option
+        };
+        let factorcheck = if source.factorcheck_option == 1 {
+            destination.factorcheck_option
+        } else {
+            source.factorcheck_option
+        };
+        if requires_declared_vars(factor, factorcheck) {
             // Traversal is aborted (returns false) at the first non-empty
-            // clause. Units are copied as witnesses and the empty clause of
-            // an inconsistent solver has no literals, so neither is a problem.
+            // clause, which would be added to the destination before it has
+            // declared variables. (The empty clause of an inconsistent solver
+            // has no literals, and units that are not frozen are copied as
+            // witnesses instead.)
             struct StopAtFirstClause;
             impl ClauseIterator for StopAtFirstClause {
                 fn clause(&mut self, clause: &[i32]) -> bool {
@@ -1022,7 +1052,7 @@ impl CaDiCal {
             );
         }
         ffi::copy(&source.solver, &mut destination.solver);
-        destination.declared_vars_only = source.declared_vars_only;
+        destination.update_declared_vars_only();
     }
 
     /*----------------------------------------------------------------------*/
