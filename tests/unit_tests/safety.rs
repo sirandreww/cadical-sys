@@ -444,6 +444,36 @@ fn declaring_too_many_variables_panics() {
 }
 
 #[test]
+#[should_panic(expected = "clause2 called with literal 2 of an undeclared variable")]
+fn undeclared_variables_with_factor_checks_panic() {
+    let mut solver = CaDiCal::new();
+    assert!(solver.set("factorcheck", 2));
+    solver.declare_more_variables(1);
+    solver.clause2(1, 2);
+}
+
+#[test]
+fn declared_variables_with_factor_checks() {
+    let mut solver = CaDiCal::new();
+    assert!(solver.set("factor", 1));
+    solver.declare_more_variables(2);
+    solver.clause2(1, 2);
+    solver.add(-1);
+    solver.add(0);
+    assert_eq!(solver.solve(), Status::SATISFIABLE);
+}
+
+#[test]
+#[should_panic(expected = "copy cannot copy clauses while the 'factor'/'factorcheck' options")]
+fn cloning_with_factor_checks_panics() {
+    let mut solver = CaDiCal::new();
+    assert!(solver.set("factorcheck", 2));
+    solver.declare_more_variables(1);
+    solver.clause1(1);
+    let _ = solver.clone();
+}
+
+#[test]
 fn guarded_functions_work_in_the_right_state() {
     let mut solver = CaDiCal::new();
     solver.clause2(1, 2);
