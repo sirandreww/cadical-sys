@@ -166,6 +166,11 @@ impl<W: UniquePtrTarget> Drop for Connected<W> {
 /// panics. One case is not checked: with `factor` the solver adds extension
 /// variables of its own, and passing one of those to a method that takes a
 /// literal still aborts.
+///
+/// `CaDiCaL` reads options from `CADICAL_<OPTION>` environment variables. The
+/// debugging variable `CADICAL_LIDRUP_TRACE` makes every solver write a proof
+/// to the given file, and `CaDiCaL` aborts the process when a second solver
+/// is created while it is set.
 pub struct CaDiCal {
     // Declared first so the solver is destroyed before the callbacks it may call.
     solver: UniquePtr<ffi::Solver>,
@@ -216,7 +221,7 @@ impl CaDiCal {
     #[must_use]
     #[inline]
     pub fn new() -> Self {
-        Self {
+        let mut solver = Self {
             solver: ffi::constructor(),
             last_terminator: None,
             last_learner: None,
@@ -227,7 +232,16 @@ impl CaDiCal {
             proof_file_closed: false,
             factor_option: 0,
             factorcheck_option: 1,
-        }
+        };
+        // Options can also be set through `CADICAL_<OPTION>` environment
+        // variables, which CaDiCaL reads when the solver is created.
+        solver.update_declared_vars_only();
+        // With this (debugging) environment variable set, CaDiCaL opens a
+        // proof file itself when the solver is created.
+        solver.proof_file_open = std::env::var_os("CADICAL_LIDRUP_TRACE")
+            .or_else(|| std::env::var_os("CADICALLIDRUPTRACE"))
+            .is_some();
+        solver
     }
 
     /// Core functionality as in the IPASIR incremental SAT solver interface.
@@ -1419,7 +1433,8 @@ impl CaDiCal {
     ///
     /// Since `solve` borrows the solver mutably, this can only be called
     /// between `solve` calls, where it makes the next `solve` return
-    /// [`Status::UNKNOWN`]. To stop a running `solve` from another thread,
+    /// [`Status::UNKNOWN`] (unless the formula is trivially decided, e.g.
+    /// already inconsistent). To stop a running `solve` from another thread,
     /// connect a [`TerminateFlag`] instead.
     ///
     ///  require (SOLVING | READY)
@@ -2171,7 +2186,7 @@ impl TerminateFlag {
     }
 
     /// Ask the solver to stop as soon as possible; `solve` then returns
-    /// [`Status::UNKNOWN`].
+    /// [`Status::UNKNOWN`] unless it has already decided the formula.
     pub fn terminate(&self) {
         self.0.store(true, Ordering::Relaxed);
     }
