@@ -169,6 +169,9 @@ pub struct CaDiCal {
     last_tracer: Option<Connected<ffi::Tracer>>,
     // Whether the last proof file opened with `trace_proof*` is still open.
     proof_file_open: bool,
+    // Whether a proof file was closed. CaDiCaL then closes it again (and
+    // crashes) when a later proof file is closed, so no new one may be opened.
+    proof_file_closed: bool,
 }
 
 /// Cloning copies the formula and options (see [`CaDiCal::copy`]) but not any
@@ -208,6 +211,7 @@ impl CaDiCal {
             last_fixed_listener: None,
             last_tracer: None,
             proof_file_open: false,
+            proof_file_closed: false,
         }
     }
 
@@ -890,6 +894,14 @@ impl CaDiCal {
     }
 
     #[track_caller]
+    fn require_no_closed_proof_file(&self, function: &str) {
+        assert!(
+            !self.proof_file_closed,
+            "{function} cannot open a proof file after a proof file was closed"
+        );
+    }
+
+    #[track_caller]
     fn require_propagator(&self, function: &str) {
         assert!(
             self.last_external_propagator.is_some(),
@@ -1426,13 +1438,15 @@ impl CaDiCal {
     ///
     /// # Panics
     ///
-    /// If the solver is not in the `CONFIGURING` state. `CaDiCaL` would
-    /// otherwise abort the process.
+    /// If the solver is not in the `CONFIGURING` state, or a proof file was
+    /// already closed with [`CaDiCal::close_proof_trace`]. `CaDiCaL` would
+    /// otherwise abort or crash.
     ///
     #[inline]
     #[track_caller]
     pub fn trace_proof1(&mut self, file: &str, name: &str) -> bool {
         self.require_state("trace_proof1", State::CONFIGURING);
+        self.require_no_closed_proof_file("trace_proof1");
         let opened = ffi::trace_proof1(&mut self.solver, file.to_owned(), name.to_owned());
         self.proof_file_open |= opened;
         opened
@@ -1444,13 +1458,15 @@ impl CaDiCal {
     ///
     /// # Panics
     ///
-    /// If the solver is not in the `CONFIGURING` state. `CaDiCaL` would
-    /// otherwise abort the process.
+    /// If the solver is not in the `CONFIGURING` state, or a proof file was
+    /// already closed with [`CaDiCal::close_proof_trace`]. `CaDiCaL` would
+    /// otherwise abort or crash.
     ///
     #[inline]
     #[track_caller]
     pub fn trace_proof2(&mut self, path: &str) -> bool {
         self.require_state("trace_proof2", State::CONFIGURING);
+        self.require_no_closed_proof_file("trace_proof2");
         let opened = ffi::trace_proof2(&mut self.solver, path.to_owned());
         self.proof_file_open |= opened;
         opened
@@ -1507,6 +1523,7 @@ impl CaDiCal {
     pub fn close_proof_trace(&mut self, print: bool) {
         self.require_proof_file("close_proof_trace");
         self.proof_file_open = false;
+        self.proof_file_closed = true;
         ffi::close_proof_trace(&mut self.solver, print);
     }
 
