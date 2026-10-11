@@ -481,7 +481,9 @@ static bool _has_suffix(const char *str, const char *suffix)
     return length >= suffix_length && !strcmp(str + length - suffix_length, suffix);
 }
 
-// Whether an executable 'program' is in 'PATH' (like 'File::find_program').
+// Whether CaDiCaL's 'File::find_program' finds 'program': it looks for an
+// existing '<dir>/<program>' for each ':'-separated 'PATH' entry, where an
+// empty entry gives '/<program>' and a trailing empty entry is skipped.
 static bool _program_in_path(const char *program)
 {
     const char *path = getenv("PATH");
@@ -491,21 +493,21 @@ static bool _program_in_path(const char *program)
     }
     std::string dirs(path);
     size_t start = 0;
-    while (true)
+    while (start < dirs.size())
     {
         size_t end = dirs.find(':', start);
-        std::string dir = dirs.substr(start, end == std::string::npos ? std::string::npos : end - start);
-        std::string candidate = (dir.empty() ? std::string(".") : dir) + "/" + program;
-        if (access(candidate.c_str(), X_OK) == 0)
+        if (end == std::string::npos)
+        {
+            end = dirs.size();
+        }
+        std::string candidate = dirs.substr(start, end - start) + "/" + program;
+        if (access(candidate.c_str(), F_OK) == 0)
         {
             return true;
         }
-        if (end == std::string::npos)
-        {
-            return false;
-        }
         start = end + 1;
     }
+    return false;
 }
 
 // If CaDiCaL cannot open the proof file, or cannot find the program it uses
