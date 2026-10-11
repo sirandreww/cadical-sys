@@ -137,7 +137,13 @@ fn test_external_propagator_adds_a_clause() {
 
     let propagator = propagator.borrow();
     assert!(propagator.clause_added);
-    assert!(propagator.pending.is_empty());
+    assert!(
+        propagator.pending.is_empty(),
+        "the whole external clause should be added"
+    );
     assert!(propagator.models_checked > 0);
-    assert!(!propagator.assignments.is_empty());
+    assert!(
+        !propagator.assignments.is_empty(),
+        "the propagator should be notified of assignments"
+    );
 }
