@@ -474,6 +474,14 @@ fn cloning_with_factor_checks_panics() {
 }
 
 #[test]
+#[should_panic(expected = "assume requires the solver to be READY")]
+fn assuming_in_the_middle_of_a_clause_panics() {
+    let mut solver = CaDiCal::new();
+    solver.add(1);
+    solver.assume(2);
+}
+
+#[test]
 fn guarded_functions_work_in_the_right_state() {
     let mut solver = CaDiCal::new();
     solver.clause2(1, 2);
