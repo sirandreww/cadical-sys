@@ -327,6 +327,7 @@ impl CaDiCal {
     #[track_caller]
     pub fn assume(&mut self, lit: i32) {
         require_valid_lit("assume", lit);
+        self.require_ready("assume");
         ffi::assume(&mut self.solver, lit);
     }
 
@@ -1229,8 +1230,10 @@ impl CaDiCal {
         res
     }
 
-    /// Increase preprocessing and inprocessing limits by `10^<val>`.  Values
-    /// below '0' are ignored and values above '9' are reduced to '9'.
+    /// Increase preprocessing and inprocessing limits: each limit marked as
+    /// optimizable is multiplied by `2^<val>` or `10^<val>` (depending on the
+    /// option) and capped at its maximum. Values below '0' are ignored and
+    /// values above '31' are reduced to '31'.
     ///
     ///   require (READY)
     ///   ensure (READY)
