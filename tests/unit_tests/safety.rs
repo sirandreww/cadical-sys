@@ -567,6 +567,17 @@ fn closing_a_proof_trace_twice_panics() {
 }
 
 #[test]
+#[should_panic(expected = "trace_proof2 cannot open a proof file after a proof file was closed")]
+fn reopening_a_proof_file_after_closing_one_panics() {
+    let first = temp_path("first.drat");
+    let mut solver = CaDiCal::new();
+    assert!(solver.trace_proof2(&first));
+    solver.close_proof_trace(false);
+    let _ = std::fs::remove_file(&first);
+    solver.trace_proof2(&temp_path("second.drat"));
+}
+
+#[test]
 #[should_panic(expected = "flush_proof_trace requires an open proof file")]
 fn flushing_without_a_proof_trace_panics() {
     CaDiCal::new().flush_proof_trace(false);
